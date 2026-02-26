@@ -1,0 +1,12 @@
+services:
+  matlab-compute-node:
+    image: matlab-parallel-server-minimal:R2025b
+    container_name: matlab-compute-node
+    network_mode: "host"
+    restart: always
+    environment:
+      - NODE_TYPE=compute
+      - FQDN=docker-test.matlab.internal # 実際のFQDNに変更
+    volumes:
+      - ./entrypoint.sh:/tmp/entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/tmp/entrypoint.sh"]

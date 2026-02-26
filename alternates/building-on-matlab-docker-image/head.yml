@@ -1,0 +1,14 @@
+services:
+  matlab-head-node:
+    image: matlab-parallel-server-minimal:R2025b
+    container_name: matlab-head-node
+    network_mode: "host"
+    restart: always
+    environment:
+      - NODE_TYPE=head
+      - FQDN=head-node.matlab.internal # 実際のFQDNに変更
+      - JM_NAME=MyMJS
+      - COMPUTE_NODES_CONFIG=compute1.matlab.internal:4 compute2.matlab.internal:8
+    volumes:
+      - ./entrypoint.sh:/tmp/entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/tmp/entrypoint.sh"]

@@ -97,9 +97,9 @@ RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))
        
 WORKDIR /tmp
 
-# 起動スクリプトの配置と権限付与
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# # 起動スクリプトの配置と権限付与
+# COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+# RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# エントリポイントとしてスクリプトを指定
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# # エントリポイントとしてスクリプトを指定
+# ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
