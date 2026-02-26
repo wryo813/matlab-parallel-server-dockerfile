@@ -5,7 +5,7 @@
 ARG MATLAB_RELEASE=R2025b
 
 # Specify the extra products to install into the image. These products can either be toolboxes or support packages.
-ARG ADDITIONAL_PRODUCTS="Symbolic_Math_Toolbox Deep_Learning_Toolbox_Model_for_ResNet-50_Network"
+ARG ADDITIONAL_PRODUCTS="MATLAB MATLAB_Parallel_Server Parallel_Computing_Toolbox Simulink"
 
 # Specify the fonts packages to install into the image. The default value below installs fonts for ja_JP-UTF-8 locales support.
 ARG FONTS_PACKAGES="fonts-vlgothic ibus-mozc"
@@ -32,6 +32,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get install --no-install-recommends --yes \
         wget \
         ca-certificates \
+        bzip2 \
+        xz-utils \
         ${FONTS_PACKAGES} \
         ${ADDITIONAL_APT_PACKAGES} \
     && apt-get clean \
@@ -81,5 +83,23 @@ RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm \
 # https://github.com/mathworks-ref-arch/matlab-dockerfile#help-make-matlab-even-better
 ENV MW_DDUX_FORCE_ENABLE=true MW_CONTEXT_TAGS=$MW_CONTEXT_TAGS,MATLAB:TOOLBOXES:DOCKERFILE:V1
 
-WORKDIR /home/matlab
+#WORKDIR /home/matlab
 # Inherit ENTRYPOINT and CMD from base image.
+
+# 実行ユーザーを root に設定
+USER root
+# mjs_def.sh の編集 (オンラインライセンス設定)
+RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+    && MJS_DEF_FILE="${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh" \
+    && if [ -f "${MJS_DEF_FILE}" ]; then \
+           sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}"; \
+       fi
+       
+WORKDIR /tmp
+
+# 起動スクリプトの配置と権限付与
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# エントリポイントとしてスクリプトを指定
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
