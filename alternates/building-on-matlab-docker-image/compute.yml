@@ -1,6 +1,6 @@
 services:
   matlab-compute-node:
-    image: matlab-parallel-server-minimal:R2025b
+    image: wryo/matlab-parallel-server-minimal:R2025b
     container_name: matlab-compute-node
     network_mode: "host"
     restart: always
