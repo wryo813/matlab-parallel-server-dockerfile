@@ -23,6 +23,8 @@ ARG ADDITIONAL_PRODUCTS
 ARG FONTS_PACKAGES
 ARG ADDITIONAL_APT_PACKAGES
 
+ENV PATH="/opt/matlab/${MATLAB_RELEASE}/toolbox/parallel/bin:${PATH}"
+
 # By default, the MATLAB container runs as user "matlab". To install mpm dependencies, switch to root.
 USER root
 

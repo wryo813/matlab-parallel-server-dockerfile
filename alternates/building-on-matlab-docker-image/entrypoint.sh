@@ -18,7 +18,7 @@ ${MJS_BIN} start
 # NODE_TYPEに応じた分岐
 if [ "${NODE_TYPE}" = "head" ]; then
     JM_NAME=${JM_NAME:-MyMJS}
-    ${START_JOB_MANAGER_BIN} -name "${JM_NAME}" -v
+    ${START_JOB_MANAGER_BIN} -name "${JM_NAME}" -clean -v
     
     # ジョブマネージャーの起動完了を待機するための遅延
     sleep 10
@@ -35,7 +35,7 @@ if [ "${NODE_TYPE}" = "head" ]; then
                 continue
             fi
             
-            ${START_WORKER_BIN} -jobmanagerhost "${FQDN}" -jobmanager "${JM_NAME}" -remotehost "${NODE}" -num "${NUM_WORKERS}" -v
+            ${START_WORKER_BIN} -jobmanagerhost "${FQDN}" -jobmanager "${JM_NAME}" -remotehost "${NODE}" -num "${NUM_WORKERS}" -clean -v
         done
     fi
 elif [ "${NODE_TYPE}" = "compute" ]; then
