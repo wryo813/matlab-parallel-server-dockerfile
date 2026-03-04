@@ -9,8 +9,8 @@ services:
     ipc: host
     restart: always
     environment:
-      - FQDN=head.matlab.internal
-      - JM_NAME=MyMJS
+      - FQDN=${FQDN:-head.matlab.internal}
+      - JM_NAME=${JM_NAME:-MyMJS}
     entrypoint:
       - /bin/bash
       - -c
