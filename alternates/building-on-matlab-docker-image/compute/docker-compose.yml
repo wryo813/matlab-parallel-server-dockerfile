@@ -1,0 +1,37 @@
+services:
+  matlab-compute-node:
+    #image: wryo/matlab-parallel-server-minimal:R2025b
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: matlab-compute-node
+    network_mode: host
+    ipc: host
+    restart: always
+    environment:
+      - FQDN=docker-test.matlab.internal
+      - JM_HOST=head.matlab.internal
+      - JM_NAME=MyMJS
+      - NUM_WORKERS=4
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
+        MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
+        MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
+        START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
+        
+        if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
+            sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
+        fi
+        
+        $${MJS_BIN} start -clean
+        
+        # ヘッドノードのジョブマネージャー起動待機
+        sleep 15
+        
+        $${START_WORKER_BIN} -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS:-1}" -clean -v
+        
+        tail -f /dev/null
