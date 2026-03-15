@@ -1,6 +1,5 @@
 services:
   matlab-compute-node:
-    #image: wryo/matlab-parallel-server-minimal:R2025b
     build:
       context: ..
       dockerfile: Dockerfile
@@ -18,20 +17,34 @@ services:
       - -c
       - |
         set -e
+        
+        # MATLABインストールパスの動的取得
         EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
         MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
         MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
         START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
+        NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
         
+        # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
         fi
         
-        $${MJS_BIN} start -clean
+        # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
+        (
+            # 1. ローカルの mjs サービスが起動するまでポーリング待機
+            until "$${NODESTATUS_BIN}" | grep -qi "Running"; do
+                sleep 2
+            done
         
-        # ヘッドノードのジョブマネージャー起動待機
-        sleep 15
+            # 2. ヘッドノードのジョブマネージャーが稼働するまでポーリング待機
+            until "$${NODESTATUS_BIN}" -remotehost "$${JM_HOST}" | grep -qi "Running"; do
+                sleep 5
+            done
         
-        $${START_WORKER_BIN} -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
+            # 3. ワーカープロセスの起動
+            "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
+        ) &
         
-        tail -f /dev/null
+        # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
+        exec "$${MJS_BIN}" console -clean
