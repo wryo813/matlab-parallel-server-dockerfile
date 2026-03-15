@@ -31,13 +31,15 @@ services:
         
         # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
-            # ローカルの mjs サービスが起動するまでポーリング待機
-            until "$${NODESTATUS_BIN}" | grep -qi "Running"; do
+            echo "Waiting for mjs service..."
+            # mjs サービスが正常に応答する（終了コード0を返す）まで待機する条件に変更
+            until "${NODESTATUS_BIN}" >/dev/null 2>&1; do
                 sleep 2
             done
-        
-            # ジョブマネージャープロセスの起動
-            "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+            echo "mjs service is responding. Waiting additional time for initialization..."
+            sleep 5
+            echo "Starting job manager..."
+            "${START_JOB_MANAGER_BIN}" -name "${JM_NAME}" -clean -v
         ) &
         
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
