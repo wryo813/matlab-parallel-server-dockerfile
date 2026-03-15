@@ -1,6 +1,5 @@
 services:
   matlab-head-node:
-    #image: wryo/matlab-parallel-server-minimal:R2025b
     build:
       context: ..
       dockerfile: Dockerfile
@@ -17,28 +16,57 @@ services:
       - |
         set -e
         
-        # MATLABインストールパスの動的取得
         EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
         MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
         MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
         START_JOB_MANAGER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startjobmanager"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
         
-        # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
         fi
         
-        # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
-        (
-            # ローカルの mjs サービスが起動するまでポーリング待機
+        # ジョブマネージャーの起動をラップする関数
+        start_jm_wrapper() {
+            local MAX_WAIT_SECONDS=300
+            local SLEEP_SECONDS=2
+            local ELAPSED=0
+            
+            # ローカルの mjs サービスが起動するまでポーリング待機（タイムアウト付き）
             until "$${NODESTATUS_BIN}" | grep -qi "Running"; do
-                sleep 2
+                if [ "$${ELAPSED}" -ge "$${MAX_WAIT_SECONDS}" ]; then
+                    echo "Error: MJS service did not reach 'Running' state within $${MAX_WAIT_SECONDS} seconds. Exiting." >&2
+                    exit 1
+                fi
+                sleep "$${SLEEP_SECONDS}"
+                ELAPSED=$$((ELAPSED + SLEEP_SECONDS))
             done
-        
+            
             # ジョブマネージャープロセスの起動
             "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
-        ) &
+        }
         
-        # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
-        exec "$${MJS_BIN}" console -clean
+        # ジョブマネージャーラッパーをバックグラウンドで起動
+        start_jm_wrapper &
+        JM_WRAPPER_PID=$$!
+        
+        # mjs サービスをフォアグラウンドで起動（シェルを PID 1 として残す）
+        "$${MJS_BIN}" console -clean &
+        MJS_PID=$$!
+        
+        # いずれかのプロセスが終了したら、もう一方を停止して終了コードを伝播
+        set +e
+        wait -n "$${JM_WRAPPER_PID}" "$${MJS_PID}"
+        EXIT_CODE=$$?
+        
+        # 残っている方があれば停止
+        if kill -0 "$${JM_WRAPPER_PID}" 2>/dev/null; then
+            kill "$${JM_WRAPPER_PID}" 2>/dev/null || true
+        fi
+        if kill -0 "$${MJS_PID}" 2>/dev/null; then
+            kill "$${MJS_PID}" 2>/dev/null || true
+        fi
+        
+        # 子プロセスの終了を待ち、同じ終了コードで終了
+        wait || true
+        exit "$${EXIT_CODE}"
