@@ -18,70 +18,26 @@ services:
       - |
         set -e
         
+        # MATLABインストールパスの動的取得
         EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
         MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
         MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
         START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
         
+        # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
         fi
         
-        # mjs サービスをバックグラウンドで起動し、PID を保持
-        "$${MJS_BIN}" console -clean &
-        MJS_PID=$$!
-        
-        # SIGINT/SIGTERM を mjs プロセスへフォワード
-        trap 'if [ -n "$${MJS_PID}" ]; then kill "$${MJS_PID}" 2>/dev/null || true; fi' TERM INT
-        
-        # ローカル mjs サービスが起動するまで、タイムアウト付きで待機
-        wait_for_local_mjs() {
-            local timeout=300
-            local interval=2
-            local elapsed=0
-        
-            while ! "$${NODESTATUS_BIN}" | grep -qi "Running"; do
-                if [ "$${elapsed}" -ge "$${timeout}" ]; then
-                    echo "ERROR: Local mjs service did not reach 'Running' state within $${timeout} seconds. Exiting." >&2
-                    exit 1
-                fi
-                sleep "$${interval}"
-                elapsed=$$((elapsed + interval))
-            done
-        }
-        
-        # ヘッドノードのジョブマネージャーが稼働するまで、タイムアウト付きで待機
-        wait_for_remote_job_manager() {
-            local timeout=300
-            local interval=5
-            local elapsed=0
-        
-            while ! "$${NODESTATUS_BIN}" -remotehost "$${JM_HOST}" | grep -qi "Running"; do
-                if [ "$${elapsed}" -ge "$${timeout}" ]; then
-                    echo "ERROR: Remote job manager at '$${JM_HOST}' did not reach 'Running' state within $${timeout} seconds. Exiting." >&2
-                    exit 1
-                fi
-                sleep "$${interval}"
-                elapsed=$$((elapsed + interval))
-            done
-        }
-        
-        # ワーカー起動処理をフォアグラウンドで実行し、失敗時はコンテナを終了
+        # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
-            wait_for_local_mjs
-            wait_for_remote_job_manager
+            # 1. ローカルの mjs サービスが起動するまでポーリング待機(sleepさせるのバカすぎるので直したい)
+            sleep 10
+
+            # 2. ワーカープロセスの起動
             "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
-        )
-        WORKER_EXIT=$$?
+        ) &
         
-        if [ "$${WORKER_EXIT}" -ne 0 ]; then
-            echo "startworker failed with exit code $${WORKER_EXIT}, stopping mjs and exiting." >&2
-            if [ -n "$${MJS_PID}" ]; then
-                kill "$${MJS_PID}" 2>/dev/null || true
-            fi
-            exit "$${WORKER_EXIT}"
-        fi
-        
-        # ワーカー起動が成功したら、mjs プロセスの終了を待機
-        wait "$${MJS_PID}"
+        # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
+        exec "$${MJS_BIN}" console -clean
