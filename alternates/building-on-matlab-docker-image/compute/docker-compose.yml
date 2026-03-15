@@ -33,7 +33,7 @@ services:
         # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
             # 1. ローカルの mjs サービスが起動するまでポーリング待機(sleepさせるのバカすぎるので直したい)
-            #sleep 10
+            sleep 10
 
             # 2. ワーカープロセスの起動
             "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
