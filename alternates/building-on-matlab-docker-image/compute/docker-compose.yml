@@ -9,10 +9,10 @@ services:
     ipc: host
     restart: always
     environment:
-      - FQDN=docker-test.matlab.internal
-      - JM_HOST=head.matlab.internal
-      - JM_NAME=MyMJS
-      - NUM_WORKERS=4
+      - FQDN=${FQDN:-compute.matlab.internal}
+      - JM_HOST=${JM_HOST:-head.matlab.internal}
+      - JM_NAME=${JM_NAME:-MyMJS}
+      - NUM_WORKERS=${NUM_WORKERS:-4}
     entrypoint:
       - /bin/bash
       - -c
@@ -32,6 +32,6 @@ services:
         # ヘッドノードのジョブマネージャー起動待機
         sleep 15
         
-        $${START_WORKER_BIN} -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS:-1}" -clean -v
+        $${START_WORKER_BIN} -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
         
         tail -f /dev/null
