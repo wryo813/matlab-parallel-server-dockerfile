@@ -33,17 +33,9 @@ services:
         (
             # エラーによるサブシェルの強制終了を防ぐ
             set +e
-            
-            # ローカルの mjs サービスが起動するまでポーリング待機
-            while true; do
-                if "$${NODESTATUS_BIN}" 2>/dev/null | grep -q "MJS service:"; then
-                    break
-                fi
-                sleep 2
-            done
-            
+
             # MJSサービスプロセスがポートのバインド等を完了するためのバッファ時間
-            sleep 5
+            sleep 10
             
             # ジョブマネージャープロセスの起動
             "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
