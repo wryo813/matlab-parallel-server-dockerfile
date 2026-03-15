@@ -16,16 +16,29 @@ services:
       - -c
       - |
         set -e
+        
+        # MATLABインストールパスの動的取得
         EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
         MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
         MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
         START_JOB_MANAGER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startjobmanager"
+        NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
         
+        # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
         fi
         
-        $${MJS_BIN} start -clean
-        $${START_JOB_MANAGER_BIN} -name "$${JM_NAME:-MyMJS}" -clean -v
+        # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
+        (
+            # ローカルの mjs サービスが起動するまでポーリング待機
+            until "$${NODESTATUS_BIN}" | grep -qi "Running"; do
+                sleep 2
+            done
         
-        tail -f /dev/null
+            # ジョブマネージャープロセスの起動
+            "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+        ) &
+        
+        # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
+        exec "$${MJS_BIN}" console -clean
