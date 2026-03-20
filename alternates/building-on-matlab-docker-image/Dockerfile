@@ -4,8 +4,8 @@
 # Use uppercase to specify the release, for example: ARG MATLAB_RELEASE=R2021b
 ARG MATLAB_RELEASE=R2025b
 
-# Specify the extra products to install into the image. These products can either be toolboxes or support packages.
-ARG ADDITIONAL_PRODUCTS="5G_Toolbox \
+# パッケージを5つのチャンクに均等分割
+ARG PROD_CHUNK_1="5G_Toolbox \
 AUTOSAR_Blockset \
 Aerospace_Blockset \
 Aerospace_Toolbox \
@@ -45,8 +45,9 @@ Lidar_Toolbox \
 MATLAB \
 MATLAB_Coder \
 MATLAB_Compiler \
-MATLAB_Compiler_SDK \
-MATLAB_Parallel_Server \
+MATLAB_Compiler_SDK"
+
+ARG PROD_CHUNK_2="MATLAB_Parallel_Server \
 MATLAB_Production_Server \
 MATLAB_Report_Generator \
 MATLAB_Test \
@@ -87,8 +88,9 @@ Signal_Processing_Toolbox \
 SimBiology \
 SimEvents \
 Simscape \
-Simscape_Battery \
-Simscape_Driveline \
+Simscape_Battery"
+
+ARG PROD_CHUNK_3="Simscape_Driveline \
 Simscape_Electrical \
 Simscape_Fluids \
 Simscape_Multibody \
@@ -129,8 +131,9 @@ Audio_Toolbox_Interface_for_SpeechBrain_and_Torchaudio_Libraries \
 Automated_Driving_Toolbox_Importer_for_Zenrin_Japan_Map_API_3.0_(Itsumo_NAVI_API_3.0)_Service \
 Automated_Driving_Toolbox_Interface_for_Unreal_Engine_Projects \
 Automated_Driving_Toolbox_Model_for_Lidar_Lane_Detection \
-Automated_Driving_Toolbox_Test_Suite_for_Euro_NCAP_Protocols \
-Automated_Visual_Inspection_Library_for_Computer_Vision_Toolbox \
+Automated_Driving_Toolbox_Test_Suite_for_Euro_NCAP_Protocols"
+
+ARG PROD_CHUNK_4="Automated_Visual_Inspection_Library_for_Computer_Vision_Toolbox \
 CI/CD_Automation_for_Simulink_Check \
 Communications_Toolbox_Support_Package_for_Analog_Devices_ADALM-Pluto_Radio \
 Communications_Toolbox_Support_Package_for_RTL-SDR_Radio \
@@ -171,135 +174,137 @@ Deep_Learning_Toolbox_Model_for_DarkNet-19_Network \
 Deep_Learning_Toolbox_Model_for_DarkNet-53_Network \
 Deep_Learning_Toolbox_Model_for_DenseNet-201_Network \
 Deep_Learning_Toolbox_Model_for_EfficientNet-b0_Network \
-Deep_Learning_Toolbox_Model_for_GoogLeNet_Network \
-Deep_Learning_Toolbox_Model_for_Inception-ResNet-v2_Network \
-Deep_Learning_Toolbox_Model_for_Inception-v3_Network \
-Deep_Learning_Toolbox_Model_for_MobileNet-v2_Network \
-Deep_Learning_Toolbox_Model_for_NASNet-Large_Network \
-Deep_Learning_Toolbox_Model_for_NASNet-Mobile_Network \
-Deep_Learning_Toolbox_Model_for_Places365-GoogLeNet_Network \
-Deep_Learning_Toolbox_Model_for_ResNet-101_Network \
-Deep_Learning_Toolbox_Model_for_ResNet-18_Network \
-Deep_Learning_Toolbox_Model_for_ResNet-50_Network \
-Deep_Learning_Toolbox_Model_for_ShuffleNet_Network \
-Deep_Learning_Toolbox_Model_for_VGG-16_Network \
-Deep_Learning_Toolbox_Model_for_VGG-19_Network \
-Deep_Learning_Toolbox_Model_for_Xception_Network \
-Deep_Learning_Toolbox_Verification_Library \
-Embedded_Coder_Interface_to_QEMU_Emulator \
-Embedded_Coder_Support_Package_For_Linux_Applications \
-Embedded_Coder_Support_Package_for_AMD_SoC_Devices \
-Embedded_Coder_Support_Package_for_ARM_Cortex-A_Processors \
-Embedded_Coder_Support_Package_for_ARM_Cortex-M_Processors \
-Embedded_Coder_Support_Package_for_Intel_SoC_Devices \
-Embedded_Coder_Support_Package_for_Qualcomm_Hexagon_Processors \
-Embedded_Coder_Support_Package_for_STMicroelectronics_STM32_Processors \
-Ephemeris_Data_for_Aerospace_Toolbox \
-Extended_Tire_Features_for_Vehicle_Dynamics_Blockset \
-FMU_Builder_For_Simulink \
-GPU_Coder_Interface_for_Deep_Learning_Libraries \
-GUIDE_to_App_Designer_Migration_Tool_for_MATLAB \
-Geoid_Data_for_Aerospace_Toolbox \
-HDL_Coder_Support_Package_for_AMD_FPGA_and_SoC_Devices \
-HDL_Coder_Support_Package_for_Intel_FPGA_and_SoC_Devices \
-HDL_Coder_Support_Package_for_Microchip_FPGA_and_SoC_Devices \
-HDL_Verifier_Support_Package_for_AMD_FPGA_and_SoC_Devices \
-HDL_Verifier_Support_Package_for_Intel_FPGA_Boards \
-HDL_Verifier_Support_Package_for_Microsemi_FPGA_Boards \
-Hyperspectral_Imaging_Library_for_Image_Processing_Toolbox \
-Image_Acquisition_Toolbox_Support_Package_for_DCAM_Hardware \
-Image_Acquisition_Toolbox_Support_Package_for_OS_Generic_Video_Interface \
-Image_Processing_Toolbox_Image_Data \
-Image_Processing_Toolbox_Model_for_Segment_Anything_Model \
-Instrument_Control_Toolbox_Support_Package_for_Total_Phase_Aardvark_I2C/SPI_Interface \
-Integro-Differential_Modeling_Framework_for_MATLAB \
-Large-Scale_Cloud_Simulation_for_Simulink \
-Lidar_Toolbox_Model_for_PointNet++_Classification \
-Lidar_Toolbox_Model_for_RandLA-Net_Semantic_Segmentation \
-Lidar_Toolbox_Support_Package_for_Hokuyo_LiDAR_Sensors \
-Lidar_Toolbox_Support_Package_for_Ouster_Lidar_Sensors \
-Lidar_Toolbox_Support_Package_for_Velodyne_LiDAR_Sensors \
-MATLAB_Basemap_Data_-_bluegreen \
-MATLAB_Basemap_Data_-_colorterrain \
-MATLAB_Basemap_Data_-_grayland \
-MATLAB_Basemap_Data_-_grayterrain \
-MATLAB_Basemap_Data_-_landcover \
-MATLAB_Client_for_MATLAB_Production_Server \
-MATLAB_Coder_Interface_for_Deep_Learning_Libraries \
-MATLAB_Coder_Interface_for_Visual_Studio_Code_Debugging \
-MATLAB_Coder_Support_Package_for_NVIDIA_Jetson_and_NVIDIA_DRIVE_Platforms \
-MATLAB_Support_Package_for_Android_Sensors \
-MATLAB_Support_Package_for_Apple_iOS_Sensors \
-MATLAB_Support_Package_for_Arduino_Hardware \
-MATLAB_Support_Package_for_LEGO_MINDSTORMS_EV3_Hardware \
-MATLAB_Support_Package_for_Quantum_Computing \
-MATLAB_Support_Package_for_Raspberry_Pi_Hardware \
-MATLAB_Support_Package_for_USB_Webcams \
-MATLAB_Support_for_HEIF/HEIC_Image_Format \
-Machine_Learning_Pipelines_for_Statistics_and_Machine_Learning_Toolbox_(Beta) \
-Medical_Imaging_Toolbox_Interface_for_Cellpose \
-Medical_Imaging_Toolbox_Interface_for_MONAI_Label_Library \
-Medical_Imaging_Toolbox_Model_for_Medical_Segment_Anything_Model \
-Mixed-Signal_Blockset_Models \
-Modelscape_for_MATLAB \
-Multi-Version_Co-Simulation_for_Simulink \
-Powertrain_Blockset_Drive_Cycle_Data \
-RF_Blockset_Models_for_Analog_Devices_RF_Transceivers \
-ROS_Toolbox_Support_Package_for_TurtleBot-Based_Robots \
-Robotics_System_Toolbox_Interface_for_Unreal_Engine_Projects \
-Robotics_System_Toolbox_Offroad_Autonomy_Library \
-Robotics_System_Toolbox_Robot_Library_Data \
-Robotics_System_Toolbox_Support_Package_for_Kinova_Gen3_Manipulators \
-Robotics_System_Toolbox_Support_Package_for_Universal_Robots_UR_Series_Manipulators \
-Scenario_Builder_for_Automated_Driving_Toolbox \
-Signal_Processing_Toolbox_Support_Package_for_Linux_IIO_Devices \
-Simulink_3D_Animation_Interface_for_Unreal_Engine_Projects \
-Simulink_Coder_Support_Package_for_BeagleBone_Blue_Hardware \
-Simulink_Support_Package_for_Android_Devices \
-Simulink_Support_Package_for_Arduino_Hardware \
-Simulink_Support_Package_for_LEGO_MINDSTORMS_EV3_Hardware \
-Simulink_Support_Package_for_Parrot_Minidrones \
-Simulink_Support_Package_for_Raspberry_Pi_Hardware \
-SoC_Blockset_Support_Package_for_AMD_FPGA_and_SoC_Devices \
-SoC_Blockset_Support_Package_for_Embedded_Linux_Devices \
-SoC_Blockset_Support_Package_for_Intel_Devices \
-Streaming_Data_Framework_for_MATLAB_Production_Server \
-Text_Analytics_Toolbox_Model_for_BERT-Base_Multilingual_Cased_Network \
-Text_Analytics_Toolbox_Model_for_BERT-Base_Network \
-Text_Analytics_Toolbox_Model_for_BERT-Large_Network \
-Text_Analytics_Toolbox_Model_for_BERT-Mini_Network \
-Text_Analytics_Toolbox_Model_for_BERT-Small_Network \
-Text_Analytics_Toolbox_Model_for_BERT-Tiny_Network \
-Text_Analytics_Toolbox_Model_for_all-MiniLM-L12-v2_Network \
-Text_Analytics_Toolbox_Model_for_all-MiniLM-L6-v2_Network \
-Text_Analytics_Toolbox_Model_for_fastText_English_16_Billion_Token_Word_Embedding \
-Text_Analytics_Toolbox_Model_from_UDify_Data \
-UAV_Toolbox_Interface_for_Unreal_Engine_Projects \
-UAV_Toolbox_Support_Package_for_PX4_Autopilots \
-Variant_Manager_for_Simulink \
-Vehicle_Dynamics_Blockset_Interface_for_Unreal_Engine_Projects \
-Vehicle_Dynamics_Blockset_Maneuver_Data \
-WINNER_II_Channel_Model_for_Communications_Toolbox \
-Wireless_Testbench_Support_Package_for_NI_USRP_Radios \
-Airport_Scene \
-Construction_Site_Scene \
-Curved_Road_Scene \
-Double_Lane_Change_Scene \
-Empty_Grass_Scene \
-Empty_Scene \
-Large_Parking_Lot_Scene \
-Offroad_Pit_Mining_Scene \
-Open_Surface_Scene \
-Parking_Lot_Scene \
-Straight_Road_Scene \
-Suburban_Scene \
-TensorRT_Library \
-US_City_Block_Scene \
-US_Highway_Scene \
-Virtual_MCity_Scene \
-ZalaZONE_Automotive_Proving_Ground_High-speed_Handling_Course_Scene \
-ZalaZONE_Automotive_Proving_Ground_Hill_Tracks_Scene \
-ZalaZONE_Automotive_Proving_Ground_Smart_City_Scene"
+Deep_Learning_Toolbox_Model_for_GoogLeNet_Network"
+
+# ARG PROD_CHUNK_5="Deep_Learning_Toolbox_Model_for_Inception-ResNet-v2_Network \
+# Deep_Learning_Toolbox_Model_for_Inception-v3_Network \
+# Deep_Learning_Toolbox_Model_for_MobileNet-v2_Network \
+# Deep_Learning_Toolbox_Model_for_NASNet-Large_Network \
+# Deep_Learning_Toolbox_Model_for_NASNet-Mobile_Network \
+# Deep_Learning_Toolbox_Model_for_Places365-GoogLeNet_Network \
+# Deep_Learning_Toolbox_Model_for_ResNet-101_Network \
+# Deep_Learning_Toolbox_Model_for_ResNet-18_Network \
+# Deep_Learning_Toolbox_Model_for_ResNet-50_Network \
+# Deep_Learning_Toolbox_Model_for_ShuffleNet_Network \
+# Deep_Learning_Toolbox_Model_for_VGG-16_Network \
+# Deep_Learning_Toolbox_Model_for_VGG-19_Network \
+# Deep_Learning_Toolbox_Model_for_Xception_Network \
+# Deep_Learning_Toolbox_Verification_Library \
+# Embedded_Coder_Interface_to_QEMU_Emulator \
+# Embedded_Coder_Support_Package_For_Linux_Applications \
+# Embedded_Coder_Support_Package_for_AMD_SoC_Devices \
+# Embedded_Coder_Support_Package_for_ARM_Cortex-A_Processors \
+# Embedded_Coder_Support_Package_for_ARM_Cortex-M_Processors \
+# Embedded_Coder_Support_Package_for_Intel_SoC_Devices \
+# Embedded_Coder_Support_Package_for_Qualcomm_Hexagon_Processors \
+# Embedded_Coder_Support_Package_for_STMicroelectronics_STM32_Processors \
+# Ephemeris_Data_for_Aerospace_Toolbox \
+# Extended_Tire_Features_for_Vehicle_Dynamics_Blockset \
+# FMU_Builder_For_Simulink \
+# GPU_Coder_Interface_for_Deep_Learning_Libraries \
+# GUIDE_to_App_Designer_Migration_Tool_for_MATLAB \
+# Geoid_Data_for_Aerospace_Toolbox \
+# HDL_Coder_Support_Package_for_AMD_FPGA_and_SoC_Devices \
+# HDL_Coder_Support_Package_for_Intel_FPGA_and_SoC_Devices \
+# HDL_Coder_Support_Package_for_Microchip_FPGA_and_SoC_Devices \
+# HDL_Verifier_Support_Package_for_AMD_FPGA_and_SoC_Devices \
+# HDL_Verifier_Support_Package_for_Intel_FPGA_Boards \
+# HDL_Verifier_Support_Package_for_Microsemi_FPGA_Boards \
+# Hyperspectral_Imaging_Library_for_Image_Processing_Toolbox \
+# Image_Acquisition_Toolbox_Support_Package_for_DCAM_Hardware \
+# Image_Acquisition_Toolbox_Support_Package_for_OS_Generic_Video_Interface \
+# Image_Processing_Toolbox_Image_Data \
+# Image_Processing_Toolbox_Model_for_Segment_Anything_Model \
+# Instrument_Control_Toolbox_Support_Package_for_Total_Phase_Aardvark_I2C/SPI_Interface \
+# Integro-Differential_Modeling_Framework_for_MATLAB \
+# Large-Scale_Cloud_Simulation_for_Simulink \
+# Lidar_Toolbox_Model_for_PointNet++_Classification \
+# Lidar_Toolbox_Model_for_RandLA-Net_Semantic_Segmentation \
+# Lidar_Toolbox_Support_Package_for_Hokuyo_LiDAR_Sensors \
+# Lidar_Toolbox_Support_Package_for_Ouster_Lidar_Sensors \
+# Lidar_Toolbox_Support_Package_for_Velodyne_LiDAR_Sensors \
+# MATLAB_Basemap_Data_-_bluegreen \
+# MATLAB_Basemap_Data_-_colorterrain \
+# MATLAB_Basemap_Data_-_grayland \
+# MATLAB_Basemap_Data_-_grayterrain \
+# MATLAB_Basemap_Data_-_landcover \
+# MATLAB_Client_for_MATLAB_Production_Server \
+# MATLAB_Coder_Interface_for_Deep_Learning_Libraries \
+# MATLAB_Coder_Interface_for_Visual_Studio_Code_Debugging \
+# MATLAB_Coder_Support_Package_for_NVIDIA_Jetson_and_NVIDIA_DRIVE_Platforms \
+# MATLAB_Support_Package_for_Android_Sensors \
+# MATLAB_Support_Package_for_Apple_iOS_Sensors \
+# MATLAB_Support_Package_for_Arduino_Hardware \
+# MATLAB_Support_Package_for_LEGO_MINDSTORMS_EV3_Hardware \
+# MATLAB_Support_Package_for_Quantum_Computing \
+# MATLAB_Support_Package_for_Raspberry_Pi_Hardware \
+# MATLAB_Support_Package_for_USB_Webcams \
+# MATLAB_Support_for_HEIF/HEIC_Image_Format \
+# Machine_Learning_Pipelines_for_Statistics_and_Machine_Learning_Toolbox_(Beta) \
+# Medical_Imaging_Toolbox_Interface_for_Cellpose \
+# Medical_Imaging_Toolbox_Interface_for_MONAI_Label_Library \
+# Medical_Imaging_Toolbox_Model_for_Medical_Segment_Anything_Model \
+# Mixed-Signal_Blockset_Models \
+# Modelscape_for_MATLAB \
+# Multi-Version_Co-Simulation_for_Simulink \
+# Powertrain_Blockset_Drive_Cycle_Data \
+# RF_Blockset_Models_for_Analog_Devices_RF_Transceivers \
+# ROS_Toolbox_Support_Package_for_TurtleBot-Based_Robots \
+# Robotics_System_Toolbox_Interface_for_Unreal_Engine_Projects \
+# Robotics_System_Toolbox_Offroad_Autonomy_Library \
+# Robotics_System_Toolbox_Robot_Library_Data \
+# Robotics_System_Toolbox_Support_Package_for_Kinova_Gen3_Manipulators \
+# Robotics_System_Toolbox_Support_Package_for_Universal_Robots_UR_Series_Manipulators \
+# Scenario_Builder_for_Automated_Driving_Toolbox \
+# Signal_Processing_Toolbox_Support_Package_for_Linux_IIO_Devices \
+# Simulink_3D_Animation_Interface_for_Unreal_Engine_Projects \
+# Simulink_Coder_Support_Package_for_BeagleBone_Blue_Hardware \
+# Simulink_Support_Package_for_Android_Devices \
+# Simulink_Support_Package_for_Arduino_Hardware \
+# Simulink_Support_Package_for_LEGO_MINDSTORMS_EV3_Hardware \
+# Simulink_Support_Package_for_Parrot_Minidrones \
+# Simulink_Support_Package_for_Raspberry_Pi_Hardware \
+# SoC_Blockset_Support_Package_for_AMD_FPGA_and_SoC_Devices \
+# SoC_Blockset_Support_Package_for_Embedded_Linux_Devices \
+# SoC_Blockset_Support_Package_for_Intel_Devices \
+# Streaming_Data_Framework_for_MATLAB_Production_Server \
+# Text_Analytics_Toolbox_Model_for_BERT-Base_Multilingual_Cased_Network \
+# Text_Analytics_Toolbox_Model_for_BERT-Base_Network \
+# Text_Analytics_Toolbox_Model_for_BERT-Large_Network \
+# Text_Analytics_Toolbox_Model_for_BERT-Mini_Network \
+# Text_Analytics_Toolbox_Model_for_BERT-Small_Network \
+# Text_Analytics_Toolbox_Model_for_BERT-Tiny_Network \
+# Text_Analytics_Toolbox_Model_for_all-MiniLM-L12-v2_Network \
+# Text_Analytics_Toolbox_Model_for_all-MiniLM-L6-v2_Network \
+# Text_Analytics_Toolbox_Model_for_fastText_English_16_Billion_Token_Word_Embedding \
+# Text_Analytics_Toolbox_Model_from_UDify_Data \
+# UAV_Toolbox_Interface_for_Unreal_Engine_Projects \
+# UAV_Toolbox_Support_Package_for_PX4_Autopilots \
+# Variant_Manager_for_Simulink \
+# Vehicle_Dynamics_Blockset_Interface_for_Unreal_Engine_Projects \
+# Vehicle_Dynamics_Blockset_Maneuver_Data \
+# WINNER_II_Channel_Model_for_Communications_Toolbox \
+# Wireless_Testbench_Support_Package_for_NI_USRP_Radios \
+# Airport_Scene \
+# Construction_Site_Scene \
+# Curved_Road_Scene \
+# Double_Lane_Change_Scene \
+# Empty_Grass_Scene \
+# Empty_Scene \
+# Large_Parking_Lot_Scene \
+# Offroad_Pit_Mining_Scene \
+# Open_Surface_Scene \
+# Parking_Lot_Scene \
+# Straight_Road_Scene \
+# Suburban_Scene \
+# TensorRT_Library \
+# US_City_Block_Scene \
+# US_Highway_Scene \
+# Virtual_MCity_Scene \
+# ZalaZONE_Automotive_Proving_Ground_High-speed_Handling_Course_Scene \
+# ZalaZONE_Automotive_Proving_Ground_Hill_Tracks_Scene \
+# ZalaZONE_Automotive_Proving_Ground_Smart_City_Scene"
+
 
 # Specify the fonts packages to install into the image. The default value below installs fonts for ja_JP-UTF-8 locales support.
 ARG FONTS_PACKAGES="fonts-vlgothic ibus-mozc"
@@ -308,12 +313,15 @@ ARG FONTS_PACKAGES="fonts-vlgothic ibus-mozc"
 ARG ADDITIONAL_APT_PACKAGES="" 
 
 # This Dockerfile builds on the Ubuntu-based mathworks/matlab image.
-# To check the available matlab images, see: https://hub.docker.com/r/mathworks/matlab
 FROM mathworks/matlab:$MATLAB_RELEASE
 
 # Declare the global argument to use at the current build stage
 ARG MATLAB_RELEASE
-ARG ADDITIONAL_PRODUCTS
+ARG PROD_CHUNK_1
+ARG PROD_CHUNK_2
+ARG PROD_CHUNK_3
+ARG PROD_CHUNK_4
+ARG PROD_CHUNK_5
 ARG FONTS_PACKAGES
 ARG ADDITIONAL_APT_PACKAGES
 
@@ -336,51 +344,54 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-# Run mpm to install MathWorks products into the existing MATLAB installation directory,
-# and delete the mpm installation afterwards.
-# Modify it by setting the ADDITIONAL_PRODUCTS defined above,
-# e.g. ADDITIONAL_PRODUCTS="Statistics_and_Machine_Learning_Toolbox Parallel_Computing_Toolbox MATLAB_Coder".
-# If mpm fails to install successfully then output the logfile to the terminal, otherwise cleanup.
-
-# Switch to user matlab, and pass in $HOME variable to mpm,
-# so that mpm can set the correct root folder for the support packages.
 WORKDIR /tmp
 USER matlab
-RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm \
-    && chmod +x mpm \
-    && EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+
+# 1. mpmのダウンロードと実行権限の付与
+RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm && chmod +x mpm
+
+# 2. 分割したチャンクごとにインストールを実行
+RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
     && sudo HOME=${HOME} ./mpm install \
         --destination=${EXISTING_MATLAB_LOCATION} \
         --release=${MATLAB_RELEASE} \
-        --products ${ADDITIONAL_PRODUCTS} \
-    || (echo "MPM Installation Failure. See below for more information:" && cat /tmp/mathworks_root.log && false) \
-    && sudo rm -rf mpm /tmp/mathworks_root.log
+        --products ${PROD_CHUNK_1} \
+    || (echo "MPM Installation Failure for Chunk 1. See below for more information:" && cat /tmp/mathworks_root.log && false)
 
-# When running the container a license file can be mounted,
-# or a license server can be provided as an environment variable.
-# For more information, see https://hub.docker.com/r/mathworks/matlab
+RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+    && sudo HOME=${HOME} ./mpm install \
+        --destination=${EXISTING_MATLAB_LOCATION} \
+        --release=${MATLAB_RELEASE} \
+        --products ${PROD_CHUNK_2} \
+    || (echo "MPM Installation Failure for Chunk 2. See below for more information:" && cat /tmp/mathworks_root.log && false)
 
-# Alternatively, you can provide a license server to use
-# with the docker image while building the image.
-# Specify the host and port of the machine that serves the network licenses
-# if you want to bind in the license info as an environment variable.
-# You can also build with something like --build-arg LICENSE_SERVER=27000@MyServerName,
-# in which case you should uncomment the following two lines.
-# If these lines are uncommented, $LICENSE_SERVER must be a valid license
-# server or browser mode will not start successfully.
-# ARG LICENSE_SERVER
-# ENV MLM_LICENSE_FILE=$LICENSE_SERVER
+RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+    && sudo HOME=${HOME} ./mpm install \
+        --destination=${EXISTING_MATLAB_LOCATION} \
+        --release=${MATLAB_RELEASE} \
+        --products ${PROD_CHUNK_3} \
+    || (echo "MPM Installation Failure for Chunk 3. See below for more information:" && cat /tmp/mathworks_root.log && false)
+
+RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+    && sudo HOME=${HOME} ./mpm install \
+        --destination=${EXISTING_MATLAB_LOCATION} \
+        --release=${MATLAB_RELEASE} \
+        --products ${PROD_CHUNK_4} \
+    || (echo "MPM Installation Failure for Chunk 4. See below for more information:" && cat /tmp/mathworks_root.log && false)
+
+# RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+#     && sudo HOME=${HOME} ./mpm install \
+#         --destination=${EXISTING_MATLAB_LOCATION} \
+#         --release=${MATLAB_RELEASE} \
+#         --products ${PROD_CHUNK_5} \
+#     || (echo "MPM Installation Failure for Chunk 5. See below for more information:" && cat /tmp/mathworks_root.log && false)
+
+# 3. mpmバイナリとログのクリーンアップ
+RUN sudo rm -rf mpm /tmp/mathworks_root.log
 
 # The following environment variables allow MathWorks to understand how this MathWorks
-# product is being used. This information helps us make MATLAB even better.
-# Your content, and information about the content within your files, is not shared with MathWorks.
-# To opt out of this service, delete the environment variables defined in the following line.
-# See the Help Make MATLAB Even Better section in the accompanying README to learn more:
-# https://github.com/mathworks-ref-arch/matlab-dockerfile#help-make-matlab-even-better
+# product is being used.
 ENV MW_DDUX_FORCE_ENABLE=true MW_CONTEXT_TAGS=$MW_CONTEXT_TAGS,MATLAB:TOOLBOXES:DOCKERFILE:V1
-
-#WORKDIR /home/matlab
-# Inherit ENTRYPOINT and CMD from base image.
 
 # 実行ユーザーを root に設定
 USER root
@@ -392,10 +403,3 @@ RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))
        fi
        
 WORKDIR /tmp
-
-# # 起動スクリプトの配置と権限付与
-# COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-# RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# # エントリポイントとしてスクリプトを指定
-# ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
