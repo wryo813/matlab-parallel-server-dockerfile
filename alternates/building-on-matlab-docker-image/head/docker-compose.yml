@@ -1,9 +1,9 @@
 services:
   matlab-head-node:
-    image: ghcr.io/wryo813/matlab-parallel-server-full:r2025b
-    #build:
-    #  context: ..
-    #  dockerfile: Dockerfile
+    #image: ghcr.io/wryo813/matlab-parallel-server-full:r2025b
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: matlab-head-node
     network_mode: host
     ipc: host
