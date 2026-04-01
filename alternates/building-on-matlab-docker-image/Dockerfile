@@ -42,7 +42,6 @@ Industrial_Communication_Toolbox \
 Instrument_Control_Toolbox \
 LTE_Toolbox \
 Lidar_Toolbox \
-MATLAB \
 MATLAB_Coder \
 MATLAB_Compiler \
 MATLAB_Compiler_SDK \
