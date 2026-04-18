@@ -66,6 +66,7 @@ Polyspace_Bug_Finder_Server \
 Polyspace_Code_Prover \
 Polyspace_Code_Prover_Server \
 Polyspace_Test \
+Polyspace_as_You_Code \
 Powertrain_Blockset \
 Predictive_Maintenance_Toolbox \
 RF_Blockset \
@@ -73,11 +74,13 @@ RF_PCB_Toolbox \
 RF_Toolbox \
 ROS_Toolbox \
 Radar_Toolbox \
+Raspberry_Pi_Blockset \
 Reinforcement_Learning_Toolbox \
 Requirements_Toolbox \
 Risk_Management_Toolbox \
 Robotics_System_Toolbox \
 Robust_Control_Toolbox \
+STM32_Microcontroller_Blockset \
 Satellite_Communications_Toolbox \
 Sensor_Fusion_and_Tracking_Toolbox \
 SerDes_Toolbox \
@@ -101,6 +104,7 @@ Simulink_Coverage \
 Simulink_Design_Optimization \
 Simulink_Design_Verifier \
 Simulink_Desktop_Real-Time \
+Simulink_FMU_Builder \
 Simulink_Fault_Analyzer \
 Simulink_PLC_Coder \
 Simulink_Real-Time \
@@ -120,6 +124,7 @@ Vision_HDL_Toolbox \
 WLAN_Toolbox \
 Wavelet_Toolbox \
 Wireless_HDL_Toolbox \
+Wireless_Network_Toolbox \
 Wireless_Testbench"
 # 6G_Exploration_Library_for_5G_Toolbox \
 # ASIC_Testbench_for_HDL_Verifier \
