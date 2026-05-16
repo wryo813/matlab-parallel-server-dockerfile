@@ -1,44 +1,63 @@
+x-matlab-compute-node: &matlab-compute-node
+  #image: ghcr.io/wryo813/matlab-parallel-server-full:r2025b
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  network_mode: host
+  ipc: host
+  restart: always
+  environment:
+    - FQDN=${FQDN:-compute.matlab.internal}
+    - JM_HOST=${JM_HOST:-head.matlab.internal}
+    - JM_NAME=${JM_NAME:-MyMJS}
+    - NUM_WORKERS=${NUM_WORKERS:-4}
+  entrypoint:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      
+      # MATLABインストールパスの動的取得
+      EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
+      MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
+      MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
+      START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
+      NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
+      
+      # FQDNの書き換え処理
+      if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
+          sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
+      fi
+      
+      # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
+      (
+          # 1. ローカルの mjs サービスが起動するまでポーリング待機(sleepさせるのバカすぎるので直したい)
+          sleep 10
+
+          # 2. ワーカープロセスの起動
+          "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
+      ) &
+      
+      # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
+      exec "$${MJS_BIN}" console -clean
+
 services:
   matlab-compute-node:
-    #image: ghcr.io/wryo813/matlab-parallel-server-full:r2025b
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    <<: *matlab-compute-node
     container_name: matlab-compute-node
-    network_mode: host
-    ipc: host
-    restart: always
-    environment:
-      - FQDN=${FQDN:-compute.matlab.internal}
-      - JM_HOST=${JM_HOST:-head.matlab.internal}
-      - JM_NAME=${JM_NAME:-MyMJS}
-      - NUM_WORKERS=${NUM_WORKERS:-4}
-    entrypoint:
-      - /bin/bash
-      - -c
-      - |
-        set -e
-        
-        # MATLABインストールパスの動的取得
-        EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
-        MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
-        MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
-        START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
-        NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
-        
-        # FQDNの書き換え処理
-        if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
-            sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
-        fi
-        
-        # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
-        (
-            # 1. ローカルの mjs サービスが起動するまでポーリング待機(sleepさせるのバカすぎるので直したい)
-            sleep 10
 
-            # 2. ワーカープロセスの起動
-            "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
-        ) &
-        
-        # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
-        exec "$${MJS_BIN}" console -clean
+  matlab-compute-node-nfs:
+    <<: *matlab-compute-node
+    container_name: matlab-compute-node-nfs
+    profiles:
+      - nfs
+    volumes:
+      - nfs-data:${NFS_MOUNT_PATH:-/mnt/nfs}
+
+volumes:
+  nfs-data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_ADDR},nfsvers=${NFS_VERS:-4.1},${NFS_OPTS:-rw}"
+      device: ":${NFS_EXPORT}"
