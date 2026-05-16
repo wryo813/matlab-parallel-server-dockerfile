@@ -42,3 +42,13 @@ services:
         
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
+    volumes:
+      - nfs-data:${NFS_MOUNT_PATH:-/mnt/nfs}
+
+volumes:
+  nfs-data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NFS_ADDR},nfsvers=${NFS_VERS:-4.1},${NFS_OPTS:-rw}"
+      device: ":${NFS_EXPORT}"
