@@ -51,10 +51,14 @@ services:
     restart: always
     depends_on:
       - matlab-head-node
-    volumes:
-      - ./certs:/certs:ro
+    secrets:
+      - proxy_certificate
     command:
       - -port
       - "${PROXY_PORT:-1080}"
       - -certificate
-      - /certs/proxy-certificate.json
+      - /run/secrets/proxy_certificate
+
+secrets:
+  proxy_certificate:
+    file: ./certs/proxy-certificate.json
