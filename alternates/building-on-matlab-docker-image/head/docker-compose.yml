@@ -43,3 +43,22 @@ services:
         
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
+
+  matlab-mjs-proxy:
+    image: ghcr.io/mathworks/parallel-server-proxy:v1.0.0
+    container_name: matlab-mjs-proxy
+    network_mode: host
+    restart: always
+    depends_on:
+      - matlab-head-node
+    secrets:
+      - proxy_certificate
+    command:
+      - -port
+      - "${PROXY_PORT:-1080}"
+      - -certificate
+      - /run/secrets/proxy_certificate
+
+secrets:
+  proxy_certificate:
+    file: ./certs/proxy-certificate.json
