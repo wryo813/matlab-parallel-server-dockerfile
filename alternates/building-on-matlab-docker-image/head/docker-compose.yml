@@ -6,10 +6,10 @@ services:
       dockerfile: Dockerfile
     container_name: matlab-head-node
     network_mode: host
-    ipc: host
+    #ipc: host
     restart: always
-    cap_add:
-      - SYS_NICE     # コンテナ内でのプロセス優先度調整権限を付与
+    #cap_add:
+    #  - SYS_NICE     # コンテナ内でのプロセス優先度調整権限を付与
     #ulimits:
     #  nofile:
     #    soft: 1048576
