@@ -11,9 +11,9 @@ services:
     #cap_add:
     #  - SYS_NICE     # コンテナ内でのプロセス優先度調整権限を付与
     ulimits:
-    #  nofile:
-    #    soft: 1048576
-    #    hard: 1048576
+      nofile:
+        soft: 1048576
+        hard: 1048576
       nproc: -1      # プロセス数制限の解除
       memlock: -1    # メモリロック制限の解除
     environment:
