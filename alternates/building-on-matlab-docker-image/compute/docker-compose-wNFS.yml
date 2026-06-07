@@ -23,6 +23,8 @@ services:
       - NUM_WORKERS=${NUM_WORKERS:-4}
       - BLAS_VERSION=libaocl.so
       - LAPACK_VERSION=libaocl.so
+      - OMP_NUM_THREADS=126
+      - BLIS_NUM_THREADS=126
     entrypoint:
       - /bin/bash
       - -c
