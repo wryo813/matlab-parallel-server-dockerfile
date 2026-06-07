@@ -21,6 +21,7 @@ services:
       - JM_HOST=${JM_HOST:-head.matlab.internal}
       - JM_NAME=${JM_NAME:-MyMJS}
       - NUM_WORKERS=${NUM_WORKERS:-4}
+      - MKL_ENABLE_INSTRUCTIONS=AVX2
     entrypoint:
       - /bin/bash
       - -c

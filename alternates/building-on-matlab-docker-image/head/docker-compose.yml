@@ -19,6 +19,7 @@ services:
     environment:
       - FQDN=${FQDN:-head.matlab.internal}
       - JM_NAME=${JM_NAME:-MyMJS}
+      - MKL_ENABLE_INSTRUCTIONS=AVX2
     entrypoint:
       - /bin/bash
       - -c
