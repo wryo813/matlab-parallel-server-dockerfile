@@ -21,8 +21,8 @@ services:
       - JM_HOST=${JM_HOST:-head.matlab.internal}
       - JM_NAME=${JM_NAME:-MyMJS}
       - NUM_WORKERS=${NUM_WORKERS:-4}
-      # - BLAS_VERSION=libaocl.so
-      # - LAPACK_VERSION=libaocl.so
+      - BLAS_VERSION=libaocl.so
+      - LAPACK_VERSION=libaocl.so
       # - OMP_NUM_THREADS=1
       # - BLIS_NUM_THREADS=1
     entrypoint:
