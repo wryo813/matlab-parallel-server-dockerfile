@@ -19,24 +19,50 @@ services:
     environment:
       - FQDN=${FQDN:-head.matlab.internal}
       - JM_NAME=${JM_NAME:-MyMJS}
+      - SECURITY_LEVEL=${SECURITY_LEVEL:-2}
+      - LDAP_HOST=${LDAP_HOST:?LDAP_HOST is required (authentik LDAP outpost hostname)}
+      - LDAP_PORT=${LDAP_PORT:-389}
+      # LDAP_SECURITY_PRINCIPAL_FORMAT: [username] が短いユーザ名に置換される (角括弧が正式トークン)
+      # 例: cn=[username],ou=users,dc=ldap,dc=goauthentik,dc=io
+      - LDAP_PRINCIPAL_FORMAT=${LDAP_PRINCIPAL_FORMAT:-cn=[username],ou=users,dc=ldap,dc=goauthentik,dc=io}
+      - MJS_ADMIN_USER=${MJS_ADMIN_USER:-mjsadmin}
+      # LDAP同期間隔(秒)。0=毎アクセス時に同期、1800=30分毎(既定)
+      - LDAP_SYNC_INTERVAL=${LDAP_SYNC_INTERVAL:-1800}
+    secrets:
+      - proxy_certificate
+      - mjs_admin_pass
     entrypoint:
       - /bin/bash
       - -c
       - |
         set -e
-        
+
         # MATLABインストールパスの動的取得
         EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
         MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
         MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
         START_JOB_MANAGER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startjobmanager"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
-        
+
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
         fi
-        
+
+        # LDAP認証 / セキュリティ設定を mjs_def.sh 末尾に注入 (R2023a以降のパラメータ)
+        if [ -f "$${MJS_DEF_FILE}" ]; then
+            cat >> "$${MJS_DEF_FILE}" <<EOF
+
+# --- LDAP認証設定 (自動生成) ---
+SECURITY_LEVEL=$${SECURITY_LEVEL:-2}
+ADMIN_USER=$${MJS_ADMIN_USER:-mjsadmin}
+USE_LDAP_SERVER_AUTHENTICATION=true
+LDAP_URL=ldap://$${LDAP_HOST}:$${LDAP_PORT:-389}
+LDAP_SECURITY_PRINCIPAL_FORMAT=$${LDAP_PRINCIPAL_FORMAT}
+LDAP_SYNCHRONIZATION_INTERVAL_SECS=$${LDAP_SYNC_INTERVAL:-1800}
+EOF
+        fi
+
         # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
             # エラーによるサブシェルの強制終了を防ぐ
@@ -44,11 +70,17 @@ services:
 
             # MJSサービスプロセスがポートのバインド等を完了するためのバッファ時間（sleepさせるのバカすぎるので直したい）
             sleep 10
-            
-            # ジョブマネージャープロセスの起動
-            "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+
+            # SECURITY_LEVEL>=2 では startjobmanager がADMIN_USERのLDAPパスワードを対話入力で要求する。
+            # Dockerシークレット(/run/secrets/mjs_admin_pass)またはMJS_ADMIN_PASS環境変数からstdinに渡す。
+            MJS_ADMIN_PASS_FILE="/run/secrets/mjs_admin_pass"
+            if [ -f "$${MJS_ADMIN_PASS_FILE}" ]; then
+                cat "$${MJS_ADMIN_PASS_FILE}" | "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+            else
+                echo "$${MJS_ADMIN_PASS}" | "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+            fi
         ) &
-        
+
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
 
@@ -70,3 +102,5 @@ services:
 secrets:
   proxy_certificate:
     file: ./certs/proxy-certificate.json
+  mjs_admin_pass:
+    file: ./secrets/mjs_admin_pass.txt
