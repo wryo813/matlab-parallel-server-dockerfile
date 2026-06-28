@@ -68,14 +68,16 @@ services:
             # MJSサービスプロセスがポートのバインド等を完了するためのバッファ時間（sleepさせるのバカすぎるので直したい）
             sleep 10
 
-            # SECURITY_LEVEL>=2 では startjobmanager がADMIN_USERのLDAPパスワードを対話入力で要求する。
-            # Dockerシークレット(/run/secrets/mjs_admin_pass)またはMJS_ADMIN_PASS環境変数からstdinに渡す。
+            # SECURITY_LEVEL>=2 では startjobmanager がADMIN_USERのLDAPパスワードを /dev/tty から対話入力で要求する。
+            # stdin パイプは /dev/tty をバイパスするため効かない。
+            # script コマンドで PTY を作成し、パスワードを擬似端末経由で渡す。
             MJS_ADMIN_PASS_FILE="/run/secrets/mjs_admin_pass"
             if [ -f "$${MJS_ADMIN_PASS_FILE}" ]; then
-                cat "$${MJS_ADMIN_PASS_FILE}" | "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+                MJS_ADMIN_PASS=$$(tr -d '\n\r' < "$${MJS_ADMIN_PASS_FILE}")
             else
-                echo "$${MJS_ADMIN_PASS}" | "$${START_JOB_MANAGER_BIN}" -name "$${JM_NAME}" -clean -v
+                MJS_ADMIN_PASS="$${MJS_ADMIN_PASS}"
             fi
+            printf '%s\n' "$${MJS_ADMIN_PASS}" | script -q -c "$${START_JOB_MANAGER_BIN} -name $${JM_NAME} -clean -v" /dev/null
         ) &
 
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
