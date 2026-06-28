@@ -51,16 +51,13 @@ services:
 
         # LDAP認証 / セキュリティ設定を mjs_def.sh 末尾に注入 (R2023a以降のパラメータ)
         if [ -f "$${MJS_DEF_FILE}" ]; then
-            cat >> "$${MJS_DEF_FILE}" <<EOF
-
-# --- LDAP認証設定 (自動生成) ---
-SECURITY_LEVEL=$${SECURITY_LEVEL:-2}
-ADMIN_USER=$${MJS_ADMIN_USER:-mjsadmin}
-USE_LDAP_SERVER_AUTHENTICATION=true
-LDAP_URL=ldap://$${LDAP_HOST}:$${LDAP_PORT:-389}
-LDAP_SECURITY_PRINCIPAL_FORMAT=$${LDAP_PRINCIPAL_FORMAT}
-LDAP_SYNCHRONIZATION_INTERVAL_SECS=$${LDAP_SYNC_INTERVAL:-1800}
-EOF
+            printf '\n# --- LDAP認証設定 (自動生成) ---\n' >> "$${MJS_DEF_FILE}"
+            printf 'SECURITY_LEVEL=%s\n' "$${SECURITY_LEVEL:-2}" >> "$${MJS_DEF_FILE}"
+            printf 'ADMIN_USER=%s\n' "$${MJS_ADMIN_USER:-mjsadmin}" >> "$${MJS_DEF_FILE}"
+            printf 'USE_LDAP_SERVER_AUTHENTICATION=true\n' >> "$${MJS_DEF_FILE}"
+            printf 'LDAP_URL=ldap://%s:%s\n' "$${LDAP_HOST}" "$${LDAP_PORT:-389}" >> "$${MJS_DEF_FILE}"
+            printf 'LDAP_SECURITY_PRINCIPAL_FORMAT=%s\n' "$${LDAP_PRINCIPAL_FORMAT}" >> "$${MJS_DEF_FILE}"
+            printf 'LDAP_SYNCHRONIZATION_INTERVAL_SECS=%s\n' "$${LDAP_SYNC_INTERVAL:-1800}" >> "$${MJS_DEF_FILE}"
         fi
 
         # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
