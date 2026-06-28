@@ -25,24 +25,31 @@ services:
       - LAPACK_VERSION=libaocl.so
       # - OMP_NUM_THREADS=1
       # - BLIS_NUM_THREADS=1
+      # headノードと必ず同じ値に揃える（不一致だとワーカーがジョブマネージャに登録できない）
+      - SECURITY_LEVEL=${SECURITY_LEVEL:-2}
     entrypoint:
       - /bin/bash
       - -c
       - |
         set -e
-        
+
         # MATLABインストールパスの動的取得
         EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
         MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
         MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
         START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
-        
+
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
         fi
-        
+
+        # SECURITY_LEVELをmjs_def.shに注入 (headノードと一致させる)
+        if [ -f "$${MJS_DEF_FILE}" ]; then
+            echo "SECURITY_LEVEL=$${SECURITY_LEVEL:-2}" >> "$${MJS_DEF_FILE}"
+        fi
+
         # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
             # 1. ローカルの mjs サービスが起動するまでポーリング待機(sleepさせるのバカすぎるので直したい)
@@ -51,7 +58,7 @@ services:
             # 2. ワーカープロセスの起動
             "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
         ) &
-        
+
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
     volumes:
