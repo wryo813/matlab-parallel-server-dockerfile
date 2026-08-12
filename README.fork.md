@@ -1,4 +1,4 @@
-# MATLAB Parallel Server on Docker Compose（フォーク独自ドキュメント）
+# MATLAB Parallel Server on Docker Compose
 
 このリポジトリは [mathworks-ref-arch/matlab-dockerfile](https://github.com/mathworks-ref-arch/matlab-dockerfile) のフォークです。
 upstream の内容はそのまま残したうえで、**MATLAB Parallel Server (MJS) のクラスタを Docker Compose で構築する**ための構成を追加しています。
