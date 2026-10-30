@@ -2,7 +2,7 @@
 
 # To specify which MATLAB release to install in the container, edit the value of the MATLAB_RELEASE argument.
 # Use uppercase to specify the release, for example: ARG MATLAB_RELEASE=R2021b
-ARG MATLAB_RELEASE=R2026a
+ARG MATLAB_RELEASE=R2026b
 
 # Specify the extra products to install into the image. These products can either be toolboxes or support packages.
 ARG ADDITIONAL_PRODUCTS="5G_Toolbox \
