@@ -21,6 +21,18 @@ If you encounter a technical issue or have an enhancement request, create an iss
 
 ## Changelog
 
+### 2026.8 - October 15, 2026
+- **Changed**: Internal improvements and bug fixes.
+
+### 2026.7.1 - October 1, 2026
+- **Changed**: Internal improvements and bug fixes.
+
+### 2026.7 - September 17, 2026
+- **Added**: Download and install a prerelease by specifying `--release` as `R20XXyPrerelease` or `R20XXyPrereleaseUn` when a prerelease is available.
+
+### 2026.6 - August 26, 2026
+- **Added**: Support for installing support packages with third-party dependecies from Artifactory in offline environments using the `--repo-config` option of `mpm install`. Previously, only online installs were supported.
+
 ### 2026.5.1 - August 6, 2026
 - **Changed**: Internal improvements and bug fixes. 
 
