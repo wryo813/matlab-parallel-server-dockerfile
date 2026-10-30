@@ -1,3 +1,13 @@
+> **Note**
+> This is a fork of [mathworks-ref-arch/matlab-dockerfile](https://github.com/mathworks-ref-arch/matlab-dockerfile),
+> customized to run **MATLAB Parallel Server (MJS)** clusters with Docker Compose.
+>
+> このディレクトリの `head/` と `compute/` はフォーク独自の追加物で、以下の upstream ドキュメントには記載がありません。
+> クラスタの構築手順は **[README.fork.md](../../README.fork.md)** を参照してください。
+> 以下は upstream の README をそのまま残しています。
+
+---
+
 # Building on MATLAB Docker Image
 
 The Dockerfile in this subfolder builds on the [MATLAB Container Image on Docker Hub](https://hub.docker.com/r/mathworks/matlab)

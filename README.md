@@ -1,3 +1,12 @@
+> **Note**
+> This is a fork of [mathworks-ref-arch/matlab-dockerfile](https://github.com/mathworks-ref-arch/matlab-dockerfile),
+> customized to run **MATLAB Parallel Server (MJS)** clusters with Docker Compose.
+>
+> このフォーク独自の構成・使い方は **[README.fork.md](README.fork.md)** を参照してください。
+> 以下は upstream の README をそのまま残しています。
+
+---
+
 # Create MATLAB Container Image
 
 This repository shows you how to build and customize a Docker&reg; container for MATLAB&reg; and its toolboxes, using the [MATLAB Package Manager](https://github.com/mathworks-ref-arch/matlab-dockerfile/blob/main/MPM.md) (`mpm`). You can use this container image as a scalable and reproducible method to deploy and test your MATLAB code.
