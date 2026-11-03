@@ -70,8 +70,10 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
   - MJS 用の Java（`MATLAB_Support_for_OpenJDK`）をビルド時に `/usr/local/share/matlab/mjs/java` へ入れる。
     `mjs` は Java が見つからないと起動時にこの場所へ自動ダウンロードしますが、その処理は matlabroot への
     書き込みを伴うため `matlab` ユーザーでは失敗します
-  - base イメージが `matlab` に付けている NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除する。
-    コンテナ内で root に昇格できなくするためで、upstream のテスト `test_current_user_has_sudo` はこのため失敗します
+  - base イメージが `matlab` に付けている root への NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除し、
+    `matlab ALL=(matlab) NOPASSWD: ALL`（matlab 自身としての実行だけ）に置き換える。コンテナ内で root に昇格できなくするためです。
+    base イメージの既定 ENTRYPOINT（`/bin/run.sh`、`-shell` / `-browser` / `-vnc`）は matlab で起動しても `sudo --user matlab` を実行するため、
+    この権限は残しています。upstream のテスト `test_current_user_has_sudo`（root として `sudo echo` を実行）はこのため失敗します
 - **WORKDIR** — `/home/matlab`。
 
 なお Dockerfile 末尾に `entrypoint.sh` を `COPY` / `ENTRYPOINT` する記述がありますが**すべてコメントアウト**されており、

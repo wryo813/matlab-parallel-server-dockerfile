@@ -395,7 +395,9 @@ USER root
 # - MJS 用 Java: mjs は起動時に Java が無いと MJS_JAVA の既定値 (/usr/local/share/matlab/mjs/java) へ
 #   mpm で MATLAB_Support_for_OpenJDK を入れようとする。この処理は matlabroot への書き込みが必要で
 #   matlab ユーザーでは失敗するため、ビルド時に root で同じ手順を実行しておく (toolbox/parallel/bin/util/getMJSJava.sh と同じ手順)
-# - sudoers: base イメージが matlab に付与している NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする
+# - sudoers: base イメージが matlab に付与している root への NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする。
+#   base イメージの /bin/run.sh (-shell / -browser / -vnc 等の既定 ENTRYPOINT) は matlab 自身に対しても
+#   `sudo --user matlab` を実行するため、matlab として実行する権限だけは残す
 RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
     && MJS_DEF_FILE="${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh" \
     && if [ -f "${MJS_DEF_FILE}" ]; then \
@@ -415,7 +417,9 @@ RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))
     && rm -f "${MJS_JAVA}/mpm" \
     && mkdir -p /var/run/mjs /var/log/mjs /var/lib/mjs \
     && chown matlab:matlab /var/run/mjs /var/log/mjs /var/lib/mjs \
-    && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo
+    && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo \
+    && echo "matlab ALL=(matlab) NOPASSWD: ALL" > /etc/sudoers.d/matlab \
+    && chmod 0440 /etc/sudoers.d/matlab
 
 # MJS とワーカーを root ではなく matlab ユーザーで実行する
 USER matlab
