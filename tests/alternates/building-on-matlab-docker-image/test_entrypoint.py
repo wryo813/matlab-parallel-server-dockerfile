@@ -12,6 +12,21 @@ import pexpect
 import testinfra
 import unittest
 
+
+def _license_file_available():
+    """secret MATLAB_LICENSE_FILE が未設定で license.lic が空のときは False を返す。"""
+    try:
+        helpers.get_license_filepath()
+    except (ValueError, TypeError):
+        return False
+    return True
+
+
+_SKIP_NO_LICENSE_REASON = (
+    "License file is empty or missing (secret MATLAB_LICENSE_FILE is not set); "
+    "skipping test that needs a MATLAB license"
+)
+
 ################################################################################
 
 
@@ -120,6 +135,7 @@ class TestEntrypoint(unittest.TestCase):
         running_procs = host.check_output("ps -x -o cmd")
         self.assertIn(matlab_proxy_process, running_procs)
 
+    @unittest.skipUnless(_license_file_available(), _SKIP_NO_LICENSE_REASON)
     def test_batch_option(self):
         """Test that if the '-batch' option is specified with a license file, then MATLAB runs in batch mode."""
         source_lic_filepath = helpers.get_license_filepath()

@@ -41,7 +41,6 @@ Image_Processing_Toolbox \
 Industrial_Communication_Toolbox \
 Instrument_Control_Toolbox \
 LTE_Toolbox \
-Lidar_Toolbox \
 MATLAB_Coder \
 MATLAB_Compiler \
 MATLAB_Compiler_SDK \
@@ -61,6 +60,7 @@ Optimization_Toolbox \
 Parallel_Computing_Toolbox \
 Partial_Differential_Equation_Toolbox \
 Phased_Array_System_Toolbox \
+Point_Cloud_Toolbox \
 Polyspace_Bug_Finder \
 Polyspace_Bug_Finder_Server \
 Polyspace_Code_Prover \
@@ -383,19 +383,49 @@ RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm \
 # https://github.com/mathworks-ref-arch/matlab-dockerfile#help-make-matlab-even-better
 ENV MW_DDUX_FORCE_ENABLE=true MW_CONTEXT_TAGS=$MW_CONTEXT_TAGS,MATLAB:TOOLBOXES:DOCKERFILE:V1
 
-#WORKDIR /home/matlab
 # Inherit ENTRYPOINT and CMD from base image.
 
-# 実行ユーザーを root に設定
+# 以降の設定変更は root で行い、最後に matlab ユーザーへ戻す
 USER root
-# mjs_def.sh の編集 (オンラインライセンス設定)
+# mjs_def.sh の編集 (オンラインライセンス設定) と、MJS を matlab ユーザーで動かすための準備
+# - mjs_def.sh: compose の entrypoint が起動時に HOSTNAME / SECURITY_LEVEL / LDAP 設定を書き込むため matlab 所有にし、
+#   書き込み権を付ける (mpm は 0555 でインストールするため、所有者を変えるだけでは書き込めない)
+#   ビルド時点の内容を mjs_def.sh.orig (root 所有・読み取り専用) として保存し、entrypoint は起動のたびにそこから復元する
+# - PIDBASE: R2026b の既定値は /var/run で root しか書けないため、/var/run/mjs に変更する
+# - PIDBASE / LOGBASE / CHECKPOINTBASE (/var/run/mjs, /var/log/mjs, /var/lib/mjs) を matlab 所有で作成する
+# - MJS 用 Java: mjs は起動時に Java が無いと MJS_JAVA の既定値 (/usr/local/share/matlab/mjs/java) へ
+#   mpm で MATLAB_Support_for_OpenJDK を入れようとする。この処理は matlabroot への書き込みが必要で
+#   matlab ユーザーでは失敗するため、ビルド時に root で同じ手順を実行しておく (toolbox/parallel/bin/util/getMJSJava.sh と同じ手順)
+# - sudoers: base イメージが matlab に付与している root への NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする。
+#   base イメージの /bin/run.sh (-shell / -browser / -vnc 等の既定 ENTRYPOINT) は matlab 自身に対しても
+#   `sudo --user matlab` を実行するため、matlab として実行する権限だけは残す
 RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
     && MJS_DEF_FILE="${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh" \
     && if [ -f "${MJS_DEF_FILE}" ]; then \
-           sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}"; \
-       fi
-       
-WORKDIR /tmp
+           sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}" \
+           && sed -i 's|^#*\s*PIDBASE=.*|PIDBASE="/var/run/mjs"|' "${MJS_DEF_FILE}" \
+           && cp -p "${MJS_DEF_FILE}" "${MJS_DEF_FILE}.orig" \
+           && chown matlab:matlab "${MJS_DEF_FILE}" \
+           && chmod u+w "${MJS_DEF_FILE}"; \
+       fi \
+    && MJS_JAVA=/usr/local/share/matlab/mjs/java \
+    && SPROOT_WRITER="${EXISTING_MATLAB_LOCATION}/bin/glnxa64/sprootsettingwriter" \
+    && mkdir -p "${MJS_JAVA}" \
+    && wget -q -P "${MJS_JAVA}" https://www.mathworks.com/mpm/glnxa64/mpm \
+    && chmod +x "${MJS_JAVA}/mpm" \
+    && "${SPROOT_WRITER}" -matlabroot "${EXISTING_MATLAB_LOCATION}" -sproot "${MJS_JAVA}" \
+    && "${MJS_JAVA}/mpm" install --release=${MATLAB_RELEASE} --destination="${EXISTING_MATLAB_LOCATION}" --products=MATLAB_Support_for_OpenJDK \
+    && "${SPROOT_WRITER}" -matlabroot "${EXISTING_MATLAB_LOCATION}" -sproot "__DEFAULT__" \
+    && rm -f "${MJS_JAVA}/mpm" \
+    && mkdir -p /var/run/mjs /var/log/mjs /var/lib/mjs \
+    && chown matlab:matlab /var/run/mjs /var/log/mjs /var/lib/mjs \
+    && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo \
+    && echo "matlab ALL=(matlab) NOPASSWD: ALL" > /etc/sudoers.d/matlab \
+    && chmod 0440 /etc/sudoers.d/matlab
+
+# MJS とワーカーを root ではなく matlab ユーザーで実行する
+USER matlab
+WORKDIR /home/matlab
 
 # # 起動スクリプトの配置と権限付与
 # COPY entrypoint.sh /usr/local/bin/entrypoint.sh

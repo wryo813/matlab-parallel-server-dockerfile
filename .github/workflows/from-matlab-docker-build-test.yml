@@ -10,7 +10,9 @@ on:
     # Trigger the workflow when the Dockerfile or any file under tests/ is modified
     paths:
       - "alternates/building-on-matlab-docker-image/Dockerfile"
-      - "tests/alternates/building-on-matlab-docker-image/*"
+      - "alternates/building-on-matlab-docker-image/head/docker-compose.yml"
+      - "alternates/building-on-matlab-docker-image/compute/docker-compose*.yml"
+      - "tests/alternates/building-on-matlab-docker-image/**"
       - "tests/utils/**"
       - ".github/workflows/from-matlab-docker-build-test.yml"
       - "!**.md"
@@ -22,6 +24,7 @@ env:
   IMAGE_BASE_NAME: from-matlab-docker
   ALT_PATH: alternates/building-on-matlab-docker-image
   LICENSE_FILE_PATH: ${{ github.workspace }}/license.lic
+  MATLAB_BATCH_PATH: ${{ github.workspace }}/matlab-batch/matlab-batch
 
 jobs:
   build-test-image:
@@ -33,17 +36,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # このフォークの Dockerfile は ADDITIONAL_PRODUCTS を 1 つのリリース (Dockerfile 既定の MATLAB_RELEASE) 向けに
+        # 固定で持つ。製品名はリリースごとに異なり (例: R2026b で Lidar_Toolbox が Point_Cloud_Toolbox に改名)、
+        # 他のリリースでは mpm が "Unrecognized products" でビルドを拒否するため、既定リリースだけをビルドする。
         matlab-release:
           - R2026b
-          - R2026a
-          - R2025b
-          - R2025a
-          - R2024b
-          - R2024a
-          - R2023b
-          - R2023a
-          - R2022b
-          - R2022a
 
     steps:
       - name: Checkout repo
@@ -79,8 +76,25 @@ jobs:
       - name: Generate license file
         run: echo '${{ secrets.MATLAB_LICENSE_FILE }}' > ${{ env.LICENSE_FILE_PATH }}
 
+      # MATLAB を起動するテストは batch licensing token (secret MATLAB_BATCH_TOKEN) で実行する。
+      # token は matlab-batch 経由でしか使えないため、ランナーにダウンロードしてテストからコンテナへマウントする。
+      - name: Download matlab-batch
+        run: |
+          mkdir -p "$(dirname "${{ env.MATLAB_BATCH_PATH }}")"
+          wget -q -O "${{ env.MATLAB_BATCH_PATH }}" https://ssd.mathworks.com/supportfiles/ci/matlab-batch/v1/glnxa64/matlab-batch
+          chmod a+rx "${{ env.MATLAB_BATCH_PATH }}"
+
       - name: Test container
         working-directory: tests
         env:
           IMAGE_NAME: ${{ env.IMAGE_BASE_NAME }}:${{ matrix.matlab-release }}
+          BATCH_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
         run: python -m unittest -v ${{ env.ALT_PATH }}/*.py
+
+      # ビルドしたイメージで head と compute を本番の compose (entrypoint) のまま起動し、
+      # ジョブマネージャの起動、ワーカーの登録、パスワードがログに出ないこと、非 root 実行、再起動後の復帰を確認する。
+      # ライセンスは不要 (MATLAB のジョブは投げない)。LDAP はランナー上にテスト用の slapd を立てる。
+      - name: Test MJS cluster startup
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_BASE_NAME }}:${{ matrix.matlab-release }}
+        run: tests/alternates/building-on-matlab-docker-image/mjs-cluster/run-cluster-test.sh

@@ -40,9 +40,17 @@ services:
         START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
 
+        # ビルド時に保存した元の内容 (mjs_def.sh.orig) に戻してから書き換える。
+        # docker compose restart などで同じコンテナを再起動しても、追記した設定行が重複しない
+        if [ -f "$${MJS_DEF_FILE}.orig" ]; then
+            cat "$${MJS_DEF_FILE}.orig" > "$${MJS_DEF_FILE}"
+        fi
+
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
-            sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
+            # 既存の HOSTNAME 行を sed で置換する方式は、行の書式がリリースで違うと何もせずに終わる。
+            # mjs_def.sh はシェルスクリプトとして読み込まれ、後に書いた代入が有効になるので、末尾に追記する
+            printf '\nHOSTNAME="%s"\n' "$${FQDN}" >> "$${MJS_DEF_FILE}"
         fi
 
         # SECURITY_LEVELをmjs_def.shに注入 (headノードと一致させる)
@@ -58,6 +66,11 @@ services:
             # 2. ワーカープロセスの起動
             "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
         ) &
+
+        # 前回の起動で残った PID ファイルを消す。docker restart ではコンテナのファイルシステムが残り、
+        # mjsd.pid の中身は前回の PID 1 のまま。mjs は `ps -p 1` で生存を確認するため、新しい entrypoint (PID 1) を
+        # 前回の mjs と誤認し "already running" で終了してしまう。PIDBASE は Dockerfile で /var/run/mjs に設定している
+        rm -f /var/run/mjs/mjsd.pid
 
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean

@@ -62,6 +62,21 @@ class TestContainer(base.TestCase):
                     f"Package {pkg} is not installed",
                 )
 
+    def test_current_user_has_sudo(self):
+        """Override the test of the same name defined in the inherited test class.
+
+        このフォークは matlab ユーザーから root への sudo を意図的に削除している
+        (Dockerfile の sudoers 設定を参照)。そのため root への昇格ができないことを確認する。
+        """
+        self.assertFalse(
+            self.host.run("sudo -n true").succeeded,
+            "User matlab must not be able to sudo to root",
+        )
+
+    def test_current_user_can_sudo_as_itself(self):
+        """Test that matlab can still run 'sudo --user matlab', which the base image's /bin/run.sh uses."""
+        self.assertTrue(self.host.run("sudo -n --user matlab true").succeeded)
+
     @unittest.skip(
         "Skipping test as mathworks/matlab images are not always built with the mathworks matlab-deps default os"
     )
