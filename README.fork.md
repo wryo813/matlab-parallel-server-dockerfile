@@ -195,7 +195,7 @@ docker compose logs -f matlab-head-node
 
 1. `readlink -f $(which matlab)` から MATLAB のインストール先を動的に取得
 2. `mjs_def.sh` をビルド時の内容（`mjs_def.sh.orig`）に戻す。再起動しても設定が重複しないようにするため
-3. `mjs_def.sh` の `HOSTNAME` を `FQDN` の値に書き換え
+3. `mjs_def.sh` の末尾に `HOSTNAME="$FQDN"` を追記（後に書いた代入が有効になるため、元の `HOSTNAME` 行の書式に依存しない）
 4. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
    `LDAP_URL` / `LDAP_SECURITY_PRINCIPAL_FORMAT` / `LDAP_SYNCHRONIZATION_INTERVAL_SECS`）を追記
 5. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行

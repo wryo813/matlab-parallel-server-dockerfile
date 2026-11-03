@@ -52,11 +52,9 @@ services:
 
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
-            # matlab ユーザーは mjs_def.sh のあるディレクトリに書き込めず sed -i が一時ファイルを作れないため、
-            # /tmp で置換してから内容だけを書き戻す（ファイル自体は Dockerfile で matlab 所有にしてある）
-            sed 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}" > /tmp/mjs_def.sh.tmp
-            cat /tmp/mjs_def.sh.tmp > "$${MJS_DEF_FILE}"
-            rm -f /tmp/mjs_def.sh.tmp
+            # 既存の HOSTNAME 行を sed で置換する方式は、行の書式がリリースで違うと何もせずに終わる。
+            # mjs_def.sh はシェルスクリプトとして読み込まれ、後に書いた代入が有効になるので、末尾に追記する
+            printf '\nHOSTNAME="%s"\n' "$${FQDN}" >> "$${MJS_DEF_FILE}"
         fi
 
         # LDAP認証 / セキュリティ設定を mjs_def.sh 末尾に注入 (R2023a以降のパラメータ)
