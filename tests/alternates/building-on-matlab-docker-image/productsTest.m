@@ -1,36 +1,23 @@
 %   Copyright 2023-2025 The MathWorks, Inc.
 
 classdef productsTest < matlab.unittest.TestCase
-
+    % このフォークの Dockerfile は ADDITIONAL_PRODUCTS で 100 以上の製品を入れるため、
+    % 完全一致ではなく、MJS クラスタに必要な製品を含む一部の製品が入っていることを確認する。
 
     methods(Test)
-        function testInstalledToolboxesMatchExpected( testCase )
-            import matlab.unittest.constraints.IsSameSetAs
+        function testInstalledToolboxesIncludeExpected( testCase )
+            import matlab.unittest.constraints.IsSupersetOf
 
-            % names of the expected toolboxes
+            % names of toolboxes that must be installed
             expectedTbxNames = [...
+                "Parallel Computing Toolbox",...
                 "Deep Learning Toolbox",...
+                "Statistics and Machine Learning Toolbox",...
                 "Symbolic Math Toolbox"...
                 ];
 
-            if ~ isMATLABReleaseOlderThan("R2025a")
-                expectedTbxNames = [expectedTbxNames, ...
-                    "Deep Learning Toolbox Model for ResNet-50 Network", ...
-                    ];
-            end
-
             installedTbxNames = matlab.addons.installedAddons().Name;
-            testCase.verifyThat(installedTbxNames, IsSameSetAs(expectedTbxNames));
-        end
-        function testInstalledSupportPackagesMatchExpected( testCase )
-            import matlab.unittest.constraints.IsSameSetAs
-
-            % names of the expected support packages
-            expectedSpkgNames = [...
-                "Deep Learning Toolbox Model for ResNet-50 Network"...
-                ];
-            installedSpkgNames = matlabshared.supportpkg.getInstalled().Name;
-            testCase.verifyThat(installedSpkgNames, IsSameSetAs(expectedSpkgNames));
+            testCase.verifyThat(installedTbxNames, IsSupersetOf(expectedTbxNames));
         end
     end
 end

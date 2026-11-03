@@ -41,7 +41,6 @@ Image_Processing_Toolbox \
 Industrial_Communication_Toolbox \
 Instrument_Control_Toolbox \
 LTE_Toolbox \
-Lidar_Toolbox \
 MATLAB_Coder \
 MATLAB_Compiler \
 MATLAB_Compiler_SDK \
@@ -61,6 +60,7 @@ Optimization_Toolbox \
 Parallel_Computing_Toolbox \
 Partial_Differential_Equation_Toolbox \
 Phased_Array_System_Toolbox \
+Point_Cloud_Toolbox \
 Polyspace_Bug_Finder \
 Polyspace_Bug_Finder_Server \
 Polyspace_Code_Prover \
