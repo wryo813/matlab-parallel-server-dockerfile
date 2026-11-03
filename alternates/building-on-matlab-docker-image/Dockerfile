@@ -326,7 +326,7 @@ ENV PATH="/opt/matlab/${MATLAB_RELEASE}/toolbox/parallel/bin:${PATH}"
 # By default, the MATLAB container runs as user "matlab". To install mpm dependencies, switch to root.
 USER root
 
-# Install mpm dependencies
+# Install mpm dependencies (python3 は head ノードの feed-admin-password.py が使う)
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install --no-install-recommends --yes \
@@ -334,6 +334,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
         ca-certificates \
         bzip2 \
         xz-utils \
+        python3 \
         ${FONTS_PACKAGES} \
         ${ADDITIONAL_APT_PACKAGES} \
     && apt-get clean \

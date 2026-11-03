@@ -8,8 +8,27 @@ services:
     network_mode: host
     ipc: host
     restart: always
-    #cap_add:
-    #  - SYS_NICE     # コンテナ内でのプロセス優先度調整権限を付与
+    # --- コンテナの権限削減 ---
+    # mjs は root で動くため (MJS の仕様上、レベル 2 ではタスクも root で動く)、
+    # Docker 既定のケーパビリティを落として、root にできることを狭める。
+    #   NET_RAW を落とす      -> ホスト NIC でのパケット取得を防ぐ
+    #   SETUID/SETGID を落とす -> 任意 UID への切り替え (NFS 上でのなりすまし) を防ぐ
+    #   NET_BIND_SERVICE を落とす -> 1024 未満のポートへの bind を防ぐ
+    # mjs が起動しない場合は docker compose logs で EPERM を確認し、必要なものだけ cap_add に足すこと。
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE   # /run/secrets のファイルがホスト側の一般ユーザー所有でも読めるようにする
+      - FOWNER
+      - FSETID
+      - KILL
+    security_opt:
+      - no-new-privileges:true
+    # 1 ユーザーのジョブでホストを巻き込まないための上限。MATLAB はスレッド数が多いので
+    # pids_limit はワーカー数に応じて増やすこと。MEM_LIMIT=0 は無制限。
+    pids_limit: ${PIDS_LIMIT:-16384}
+    mem_limit: ${MEM_LIMIT:-0}
     #ulimits:
     #  nofile:
     #    soft: 1048576
@@ -19,69 +38,32 @@ services:
     environment:
       - FQDN=${FQDN:-head.matlab.internal}
       - JM_NAME=${JM_NAME:-MyMJS}
+      # 2 未満は認証なしの root 実行になるため entrypoint が起動を拒否する
       - SECURITY_LEVEL=${SECURITY_LEVEL:-2}
+      - ALLOW_INSECURE_SECURITY_LEVEL=${ALLOW_INSECURE_SECURITY_LEVEL:-0}
       - LDAP_HOST=${LDAP_HOST:?LDAP_HOST is required (authentik LDAP outpost hostname)}
-      - LDAP_PORT=${LDAP_PORT:-389}
+      # 既定は LDAPS。ldap にすると全ユーザーのパスワードが平文で流れる
+      - LDAP_SCHEME=${LDAP_SCHEME:-ldaps}
+      - LDAP_PORT=${LDAP_PORT:-636}
       # LDAP_SECURITY_PRINCIPAL_FORMAT: [username] が短いユーザ名に置換される (角括弧が正式トークン)
       # 例: cn=[username],ou=users,dc=ldap,dc=goauthentik,dc=io
       - LDAP_PRINCIPAL_FORMAT=${LDAP_PRINCIPAL_FORMAT:-cn=[username],ou=users,dc=ldap,dc=goauthentik,dc=io}
       - MJS_ADMIN_USER=${MJS_ADMIN_USER:-mjsadmin}
-      # LDAP同期間隔(秒)。0=毎アクセス時に同期、1800=30分毎(既定)
+      # LDAP同期間隔(秒)。0=毎アクセス時に同期、1800=30分毎(既定)。短いほど無効化が早く反映される
       - LDAP_SYNC_INTERVAL=${LDAP_SYNC_INTERVAL:-1800}
+      # mjs サービスがポートを開くまで startjobmanager を待たせる秒数
+      - MJS_START_DELAY=${MJS_START_DELAY:-10}
+      # startjobmanager のパスワードプロンプトを待つ上限秒数
+      - MJS_PROMPT_TIMEOUT=${MJS_PROMPT_TIMEOUT:-180}
+    volumes:
+      - ./entrypoint.sh:/opt/mjs/entrypoint.sh:ro
+      - ./feed-admin-password.py:/opt/mjs/feed-admin-password.py:ro
+      # certs/ldap-ca.pem があれば LDAPS 用 CA として JRE の信頼ストアに取り込む (無くても起動する)
+      - ./certs:/opt/mjs/certs:ro
     secrets:
-      - proxy_certificate
       - mjs_admin_pass
-    entrypoint:
-      - /bin/bash
-      - -c
-      - |
-        set -e
-
-        # MATLABインストールパスの動的取得
-        EXISTING_MATLAB_LOCATION=$$(dirname $$(dirname $$(readlink -f $$(which matlab))))
-        MJS_DEF_FILE="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh"
-        MJS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs"
-        START_JOB_MANAGER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startjobmanager"
-        NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
-
-        # FQDNの書き換え処理
-        if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
-            sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
-        fi
-
-        # LDAP認証 / セキュリティ設定を mjs_def.sh 末尾に注入 (R2023a以降のパラメータ)
-        if [ -f "$${MJS_DEF_FILE}" ]; then
-            printf '\n# --- LDAP認証設定 (自動生成) ---\n' >> "$${MJS_DEF_FILE}"
-            printf 'SECURITY_LEVEL=%s\n' "$${SECURITY_LEVEL:-2}" >> "$${MJS_DEF_FILE}"
-            printf 'ADMIN_USER=%s\n' "$${MJS_ADMIN_USER:-mjsadmin}" >> "$${MJS_DEF_FILE}"
-            printf 'USE_LDAP_SERVER_AUTHENTICATION=true\n' >> "$${MJS_DEF_FILE}"
-            printf 'LDAP_URL=ldap://%s:%s\n' "$${LDAP_HOST}" "$${LDAP_PORT:-389}" >> "$${MJS_DEF_FILE}"
-            printf 'LDAP_SECURITY_PRINCIPAL_FORMAT=%s\n' "$${LDAP_PRINCIPAL_FORMAT}" >> "$${MJS_DEF_FILE}"
-            printf 'LDAP_SYNCHRONIZATION_INTERVAL_SECS=%s\n' "$${LDAP_SYNC_INTERVAL:-1800}" >> "$${MJS_DEF_FILE}"
-        fi
-
-        # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
-        (
-            # エラーによるサブシェルの強制終了を防ぐ
-            set +e
-
-            # MJSサービスプロセスがポートのバインド等を完了するためのバッファ時間（sleepさせるのバカすぎるので直したい）
-            sleep 10
-
-            # SECURITY_LEVEL>=2 では startjobmanager がADMIN_USERのLDAPパスワードを /dev/tty から対話入力で要求する。
-            # stdin パイプは /dev/tty をバイパスするため効かない。
-            # script コマンドで PTY を作成し、パスワードを擬似端末経由で渡す。
-            MJS_ADMIN_PASS_FILE="/run/secrets/mjs_admin_pass"
-            if [ -f "$${MJS_ADMIN_PASS_FILE}" ]; then
-                MJS_ADMIN_PASS=$$(tr -d '\n\r' < "$${MJS_ADMIN_PASS_FILE}")
-            else
-                MJS_ADMIN_PASS="$${MJS_ADMIN_PASS}"
-            fi
-            printf '%s\n' "$${MJS_ADMIN_PASS}" | script -q -c "$${START_JOB_MANAGER_BIN} -name $${JM_NAME} -clean -v" /dev/null
-        ) &
-
-        # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
-        exec "$${MJS_BIN}" console -clean
+      - mjs_shared_secret
+    entrypoint: ["/bin/bash", "/opt/mjs/entrypoint.sh"]
 
   matlab-mjs-proxy:
     image: ghcr.io/mathworks/parallel-server-proxy:v1.0.1
@@ -90,6 +72,12 @@ services:
     restart: always
     depends_on:
       - matlab-head-node
+    # Go 製の単一バイナリで、ケーパビリティも書き込み可能な FS も不要
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
     secrets:
       - proxy_certificate
     command:
@@ -99,7 +87,15 @@ services:
       - /run/secrets/proxy_certificate
 
 secrets:
+  # mjssetup generate-certificate で、下の mjs_shared_secret から生成したもの。
+  # クライアント証明書と秘密鍵を含むので、プロキシ以外には渡さない。
   proxy_certificate:
     file: ./certs/proxy-certificate.json
+  # MJS_ADMIN_USER の LDAP パスワード (1 行)
   mjs_admin_pass:
     file: ./secrets/mjs_admin_pass.txt
+  # クラスタ全体で共有するシークレット (mjssetup create-shared-secret で作成)。
+  # 通信の暗号化、特権コマンドの署名、クライアント証明書の検証のすべてに使う。
+  # compute ノードにも同じファイルを配布する。
+  mjs_shared_secret:
+    file: ./secrets/mjs_shared_secret

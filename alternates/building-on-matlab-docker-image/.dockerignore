@@ -1,0 +1,8 @@
+# ビルドコンテキストは alternates/building-on-matlab-docker-image/ 全体になる (compose の context: ..)。
+# Dockerfile は何も COPY しないが、秘密ファイルを Docker デーモン (リモートビルダーなら外部) に送らないようにする。
+**/secrets/
+**/certs/
+**/.env
+**/*.env
+!**/.env.example
+.git
