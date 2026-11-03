@@ -390,7 +390,9 @@ USER root
 # mjs_def.sh の編集 (オンラインライセンス設定) と、MJS を matlab ユーザーで動かすための準備
 # - mjs_def.sh: compose の entrypoint が起動時に HOSTNAME / SECURITY_LEVEL / LDAP 設定を書き込むため matlab 所有にする
 # - PIDBASE / LOGBASE / CHECKPOINTBASE: mjs_def.sh の既定値 (/var/run/mjs, /var/log/mjs, /var/lib/mjs) を matlab 所有で作成する
-# - sudoers: base イメージが matlab に付与している NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする
+# - sudoers: base イメージが matlab に付与している root への NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする。
+#   base イメージの /bin/run.sh (-shell / -browser / -vnc 等の既定 ENTRYPOINT) は matlab 自身に対しても
+#   `sudo --user matlab` を実行するため、matlab として実行する権限だけは残す
 RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
     && MJS_DEF_FILE="${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh" \
     && if [ -f "${MJS_DEF_FILE}" ]; then \
@@ -399,7 +401,9 @@ RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))
        fi \
     && mkdir -p /var/run/mjs /var/log/mjs /var/lib/mjs \
     && chown matlab:matlab /var/run/mjs /var/log/mjs /var/lib/mjs \
-    && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo
+    && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo \
+    && echo "matlab ALL=(matlab) NOPASSWD: ALL" > /etc/sudoers.d/matlab \
+    && chmod 0440 /etc/sudoers.d/matlab
 
 # MJS とワーカーを root ではなく matlab ユーザーで実行する
 USER matlab

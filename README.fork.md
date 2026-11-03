@@ -65,8 +65,10 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
   すべて `matlab` で動きます。そのために以下を行っています。
   - `mjs_def.sh` を `matlab` 所有にする（compose の entrypoint が起動時に書き換えるため）
   - `mjs_def.sh` の既定の `PIDBASE` / `LOGBASE` / `CHECKPOINTBASE`（`/var/run/mjs`、`/var/log/mjs`、`/var/lib/mjs`）を `matlab` 所有で作成する
-  - base イメージが `matlab` に付けている NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除する。
-    コンテナ内で root に昇格できなくするためで、upstream のテスト `test_current_user_has_sudo` はこのため失敗します
+  - base イメージが `matlab` に付けている root への NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除し、
+    `matlab ALL=(matlab) NOPASSWD: ALL`（matlab 自身としての実行だけ）に置き換える。コンテナ内で root に昇格できなくするためです。
+    base イメージの既定 ENTRYPOINT（`/bin/run.sh`、`-shell` / `-browser` / `-vnc`）は matlab で起動しても `sudo --user matlab` を実行するため、
+    この権限は残しています。upstream のテスト `test_current_user_has_sudo`（root として `sudo echo` を実行）はこのため失敗します
 - **WORKDIR** — `/home/matlab`。
 
 なお Dockerfile 末尾に `entrypoint.sh` を `COPY` / `ENTRYPOINT` する記述がありますが**すべてコメントアウト**されており、
