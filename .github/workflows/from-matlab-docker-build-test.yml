@@ -33,17 +33,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # このフォークの Dockerfile は ADDITIONAL_PRODUCTS を 1 つのリリース (Dockerfile 既定の MATLAB_RELEASE) 向けに
+        # 固定で持つ。製品名はリリースごとに異なり (例: R2026b で Lidar_Toolbox が Point_Cloud_Toolbox に改名)、
+        # 他のリリースでは mpm が "Unrecognized products" でビルドを拒否するため、既定リリースだけをビルドする。
         matlab-release:
           - R2026b
-          - R2026a
-          - R2025b
-          - R2025a
-          - R2024b
-          - R2024a
-          - R2023b
-          - R2023a
-          - R2022b
-          - R2022a
 
     steps:
       - name: Checkout repo
