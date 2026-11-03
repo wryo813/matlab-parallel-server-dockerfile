@@ -42,7 +42,11 @@ services:
 
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
-            sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
+            # matlab ユーザーは mjs_def.sh のあるディレクトリに書き込めず sed -i が一時ファイルを作れないため、
+            # /tmp で置換してから内容だけを書き戻す（ファイル自体は Dockerfile で matlab 所有にしてある）
+            sed 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}" > /tmp/mjs_def.sh.tmp
+            cat /tmp/mjs_def.sh.tmp > "$${MJS_DEF_FILE}"
+            rm -f /tmp/mjs_def.sh.tmp
         fi
 
         # SECURITY_LEVELをmjs_def.shに注入 (headノードと一致させる)

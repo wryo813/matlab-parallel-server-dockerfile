@@ -44,7 +44,7 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
 
 | ファイル | 種別 | 内容 |
 | --- | --- | --- |
-| `alternates/building-on-matlab-docker-image/Dockerfile` | upstream ファイルを改変 | 製品リストの大幅追加、parallel ツールボックスへの `PATH` 追加、`mjs_def.sh` のオンラインライセンス有効化、実行ユーザーを `root` に変更 |
+| `alternates/building-on-matlab-docker-image/Dockerfile` | upstream ファイルを改変 | 製品リストの大幅追加、parallel ツールボックスへの `PATH` 追加、`mjs_def.sh` のオンラインライセンス有効化、MJS 用ディレクトリの作成と `matlab` ユーザーの sudo 権限削除 |
 | `alternates/building-on-matlab-docker-image/head/docker-compose.yml` | 新規 | head ノードとプロキシの定義 |
 | `alternates/building-on-matlab-docker-image/compute/docker-compose.yml` | 新規 | compute ノードの定義 |
 | `alternates/building-on-matlab-docker-image/compute/docker-compose-wNFS.yml` | 新規 | compute ノード + NFS 版 |
@@ -61,9 +61,13 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
 - **ライセンス** — `mjs_def.sh` の `USE_ONLINE_LICENSING` を `"true"` に書き換え。
   MathWorks のオンラインライセンスを使う設定で、ネットワークライセンスマネージャ（`LICENSE_SERVER`）は
   upstream と同様コメントアウトのままです。
-- **実行ユーザー** — `mjs` サービスの起動に必要なため、最終的に `USER root` としています。
-  upstream のイメージは `matlab` ユーザーで終わるため、ここが挙動の違いになります。
-- **WORKDIR** — `/home/matlab` をコメントアウトし `/tmp` に変更。
+- **実行ユーザー** — upstream と同じく最後は `USER matlab`（UID 1001）で、MJS サービス・ジョブマネージャ・ワーカーも
+  すべて `matlab` で動きます。そのために以下を行っています。
+  - `mjs_def.sh` を `matlab` 所有にする（compose の entrypoint が起動時に書き換えるため）
+  - `mjs_def.sh` の既定の `PIDBASE` / `LOGBASE` / `CHECKPOINTBASE`（`/var/run/mjs`、`/var/log/mjs`、`/var/lib/mjs`）を `matlab` 所有で作成する
+  - base イメージが `matlab` に付けている NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除する。
+    コンテナ内で root に昇格できなくするためで、upstream のテスト `test_current_user_has_sudo` はこのため失敗します
+- **WORKDIR** — `/home/matlab`。
 
 なお Dockerfile 末尾に `entrypoint.sh` を `COPY` / `ENTRYPOINT` する記述がありますが**すべてコメントアウト**されており、
 `entrypoint.sh` というファイルもリポジトリに存在しません。起動処理は compose 側の `entrypoint:` に移動済みです。
@@ -148,7 +152,13 @@ mkdir -p certs secrets
 cp /path/to/proxy-certificate.json certs/
 printf '%s' 'MJSADMIN_PASSWORD' > secrets/mjs_admin_pass.txt
 chmod 600 secrets/mjs_admin_pass.txt
+sudo chown 1001 secrets/mjs_admin_pass.txt   # コンテナ内の matlab ユーザー (UID 1001) が読めるようにする
 ```
+
+compose の `secrets:`（swarm ではない場合）はホストのファイルをそのまま bind mount するため、ホスト側の所有者と
+パーミッションがコンテナ内でも維持されます。`chmod 600` のままホストの別ユーザー所有になっていると、
+コンテナ内の `matlab` から読めず、`startjobmanager` が空のパスワードで失敗します。
+UID はイメージごとに `docker run --rm --entrypoint id <イメージ名> matlab` で確認できます。
 
 ### 2-2. `.env` の作成
 
@@ -299,8 +309,9 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 - **`mjs_def.sh` への設定は追記式** — LDAP 設定や `SECURITY_LEVEL` は毎回ファイル末尾に追記されます。
   同じコンテナを `docker compose restart` すると同じ行が重複して蓄積します。設定を変えるときは
   `docker compose down` でコンテナを破棄してから `up` し直すのが安全です。
-- **コンテナが root で動作** — Dockerfile の最後が `USER root` です（`mjs` の起動に必要）。
-  upstream のイメージは `matlab` ユーザーで終わる点と異なります。
+- **SECURITY_LEVEL 3 は使えない** — レベル 3（ジョブを投入ユーザーの権限で実行）は `mjs` を root で動かす必要があり、
+  `matlab` ユーザーで動かすこのイメージでは使えません。
+- **`cap_add` は非 root では効かない** — compose で `SYS_NICE` などを `cap_add` しても、root 以外のプロセスには実効になりません。
 - **AOCL は AMD CPU 前提** — `docker-compose-wNFS.yml` の `BLAS_VERSION` / `LAPACK_VERSION` は AMD 向けです。
   スレッド数を固定する `OMP_NUM_THREADS` / `BLIS_NUM_THREADS` は現在コメントアウトされています
   （MJS ではワーカー 1 つあたり 1 スレッドにするのが一般的です）。
@@ -309,7 +320,8 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 - **プリビルドイメージのバージョン差** — 各 compose にコメントアウトで残っている
   `ghcr.io/wryo813/matlab-parallel-server-full:r2025b` は、Dockerfile の既定 `MATLAB_RELEASE=R2026a` とずれています。
 - **LDAP は平文** — `ldap://` の 389 番を使っており、TLS（`ldaps://`）は未設定です。
-- **UID/GID を固定していない** — NFS 共有と LDAP ユーザーを併用する構成では、ファイル所有権がずれる可能性があります。
+- **UID/GID** — コンテナ内の `matlab` は base イメージで UID/GID 1001 です（R2026b で確認）。NFS 共有に書き込むファイルは
+  この UID で作られるため、NFS サーバー側の所有者・権限と揃える必要があります。
 
 ## upstream への追従
 

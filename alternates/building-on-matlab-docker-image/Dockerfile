@@ -383,19 +383,27 @@ RUN wget -q https://www.mathworks.com/mpm/glnxa64/mpm \
 # https://github.com/mathworks-ref-arch/matlab-dockerfile#help-make-matlab-even-better
 ENV MW_DDUX_FORCE_ENABLE=true MW_CONTEXT_TAGS=$MW_CONTEXT_TAGS,MATLAB:TOOLBOXES:DOCKERFILE:V1
 
-#WORKDIR /home/matlab
 # Inherit ENTRYPOINT and CMD from base image.
 
-# 実行ユーザーを root に設定
+# 以降の設定変更は root で行い、最後に matlab ユーザーへ戻す
 USER root
-# mjs_def.sh の編集 (オンラインライセンス設定)
+# mjs_def.sh の編集 (オンラインライセンス設定) と、MJS を matlab ユーザーで動かすための準備
+# - mjs_def.sh: compose の entrypoint が起動時に HOSTNAME / SECURITY_LEVEL / LDAP 設定を書き込むため matlab 所有にする
+# - PIDBASE / LOGBASE / CHECKPOINTBASE: mjs_def.sh の既定値 (/var/run/mjs, /var/log/mjs, /var/lib/mjs) を matlab 所有で作成する
+# - sudoers: base イメージが matlab に付与している NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする
 RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
     && MJS_DEF_FILE="${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh" \
     && if [ -f "${MJS_DEF_FILE}" ]; then \
-           sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}"; \
-       fi
-       
-WORKDIR /tmp
+           sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}" \
+           && chown matlab:matlab "${MJS_DEF_FILE}"; \
+       fi \
+    && mkdir -p /var/run/mjs /var/log/mjs /var/lib/mjs \
+    && chown matlab:matlab /var/run/mjs /var/log/mjs /var/lib/mjs \
+    && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo
+
+# MJS とワーカーを root ではなく matlab ユーザーで実行する
+USER matlab
+WORKDIR /home/matlab
 
 # # 起動スクリプトの配置と権限付与
 # COPY entrypoint.sh /usr/local/bin/entrypoint.sh
