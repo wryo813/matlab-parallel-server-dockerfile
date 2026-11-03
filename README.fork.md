@@ -199,7 +199,7 @@ docker compose logs -f matlab-head-node
 4. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
    `LDAP_URL` / `LDAP_SECURITY_PRINCIPAL_FORMAT` / `LDAP_SYNCHRONIZATION_INTERVAL_SECS`）を追記
 5. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行
-6. `mjs console -clean` を `exec` して PID 1 にする
+6. 前回の起動で残った `/var/run/mjs/mjsd.pid` を削除し（`docker restart` 後に "already running" で終了するのを防ぐため）、`mjs console -clean` を `exec` して PID 1 にする
 
 `SECURITY_LEVEL` が 2 以上の場合、`startjobmanager` は管理者パスワードを **stdin ではなく `/dev/tty` から**読もうとします。
 そのため単純なパイプでは渡せず、`script(1)` で擬似端末を作ってパスワードを流し込んでいます。

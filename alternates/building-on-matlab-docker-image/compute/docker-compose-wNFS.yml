@@ -67,6 +67,11 @@ services:
             "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
         ) &
 
+        # 前回の起動で残った PID ファイルを消す。docker restart ではコンテナのファイルシステムが残り、
+        # mjsd.pid の中身は前回の PID 1 のまま。mjs は `ps -p 1` で生存を確認するため、新しい entrypoint (PID 1) を
+        # 前回の mjs と誤認し "already running" で終了してしまう。PIDBASE は Dockerfile で /var/run/mjs に設定している
+        rm -f /var/run/mjs/mjsd.pid
+
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
     volumes:
