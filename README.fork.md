@@ -353,9 +353,21 @@ Dockerfile は upstream の改善（対応リリースの追加など）を受�
 
 ### GitHub Actions について
 
-`.github/workflows/` には upstream の CI が 6 本入っており、フォークではライセンスや secrets がないため失敗します。
+`.github/workflows/` には upstream の CI が 7 本入っています。このフォークで使うのは
+`from-matlab-docker-build-test.yml`（Building on MATLAB Docker Image）だけで、次を確認します。
+
+- イメージのビルドと、コンテナの基本動作（実行ユーザーが matlab で root へ昇格できないこと等）
+- secret `MATLAB_BATCH_TOKEN`（batch licensing token）を使った MATLAB の起動と、インストール済み製品の確認
+- MJS クラスタの起動確認（`tests/alternates/building-on-matlab-docker-image/mjs-cluster/run-cluster-test.sh`）。
+  ランナー上にテスト用の LDAP（slapd）を立て、head と compute を本番の compose のまま起動して、
+  ジョブマネージャの起動、ワーカーの登録、管理者パスワードがログに出ないこと、全プロセスが非 root であること、
+  `docker restart` 後の復帰を確認します。1 台のランナーで両方を `network_mode: host` にするとポートが衝突するため、
+  このテストに限り `mjs-cluster/docker-compose.ci.yml` で bridge ネットワークに置き換えています。
+  MATLAB のジョブは投げないためライセンスは不要です（クラスタプロファイルの検証に相当する確認は対象外）。
+
+残りの 6 本はフォークではライセンスや secrets がないため失敗します。
 ただし**これらのファイルは削除しないでください**。削除すると upstream が CI を更新するたびに
 modify/delete コンフリクトが発生します。
 
-代わりに、リポジトリの **Settings → Actions → General → Disable actions** でワークフロー自体を無効化してください。
+代わりに、Actions タブで各ワークフローを選び、右上の「…」→ **Disable workflow** で個別に無効化してください。
 ファイルを一切変更せずに済み、追従コストが増えません。
