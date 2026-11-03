@@ -44,7 +44,7 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
 
 | ファイル | 種別 | 内容 |
 | --- | --- | --- |
-| `alternates/building-on-matlab-docker-image/Dockerfile` | upstream ファイルを改変 | 製品リストの大幅追加、parallel ツールボックスへの `PATH` 追加、`mjs_def.sh` のオンラインライセンス有効化、実行ユーザーを `root` に変更 |
+| `alternates/building-on-matlab-docker-image/Dockerfile` | upstream ファイルを改変 | 製品リストの大幅追加、parallel ツールボックスへの `PATH` 追加、`mjs_def.sh` のオンラインライセンス有効化、MJS 用ディレクトリの作成と `matlab` ユーザーの sudo 権限削除 |
 | `alternates/building-on-matlab-docker-image/head/docker-compose.yml` | 新規 | head ノードとプロキシの定義 |
 | `alternates/building-on-matlab-docker-image/compute/docker-compose.yml` | 新規 | compute ノードの定義 |
 | `alternates/building-on-matlab-docker-image/compute/docker-compose-wNFS.yml` | 新規 | compute ノード + NFS 版 |
@@ -61,9 +61,21 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
 - **ライセンス** — `mjs_def.sh` の `USE_ONLINE_LICENSING` を `"true"` に書き換え。
   MathWorks のオンラインライセンスを使う設定で、ネットワークライセンスマネージャ（`LICENSE_SERVER`）は
   upstream と同様コメントアウトのままです。
-- **実行ユーザー** — `mjs` サービスの起動に必要なため、最終的に `USER root` としています。
-  upstream のイメージは `matlab` ユーザーで終わるため、ここが挙動の違いになります。
-- **WORKDIR** — `/home/matlab` をコメントアウトし `/tmp` に変更。
+- **実行ユーザー** — upstream と同じく最後は `USER matlab`（UID 1001）で、MJS サービス・ジョブマネージャ・ワーカーも
+  すべて `matlab` で動きます。そのために以下を行っています。
+  - `mjs_def.sh` を `matlab` 所有にして書き込み権を付ける（compose の entrypoint が起動時に書き換えるため。
+    mpm は 0555 でインストールするので、所有者の変更だけでは書き込めません）。
+    ビルド時点の内容は `mjs_def.sh.orig`（root 所有・読み取り専用）として保存し、entrypoint は起動のたびにそこから復元します
+  - `PIDBASE` を `/var/run/mjs` に変更する（R2026b の既定値は `/var/run` で、root しか書き込めません）
+  - `PIDBASE` / `LOGBASE` / `CHECKPOINTBASE`（`/var/run/mjs`、`/var/log/mjs`、`/var/lib/mjs`）を `matlab` 所有で作成する
+  - MJS 用の Java（`MATLAB_Support_for_OpenJDK`）をビルド時に `/usr/local/share/matlab/mjs/java` へ入れる。
+    `mjs` は Java が見つからないと起動時にこの場所へ自動ダウンロードしますが、その処理は matlabroot への
+    書き込みを伴うため `matlab` ユーザーでは失敗します
+  - base イメージが `matlab` に付けている root への NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除し、
+    `matlab ALL=(matlab) NOPASSWD: ALL`（matlab 自身としての実行だけ）に置き換える。コンテナ内で root に昇格できなくするためです。
+    base イメージの既定 ENTRYPOINT（`/bin/run.sh`、`-shell` / `-browser` / `-vnc`）は matlab で起動しても `sudo --user matlab` を実行するため、
+    この権限は残しています。upstream のテスト `test_current_user_has_sudo`（root として `sudo echo` を実行）はこのため失敗します
+- **WORKDIR** — `/home/matlab`。
 
 なお Dockerfile 末尾に `entrypoint.sh` を `COPY` / `ENTRYPOINT` する記述がありますが**すべてコメントアウト**されており、
 `entrypoint.sh` というファイルもリポジトリに存在しません。起動処理は compose 側の `entrypoint:` に移動済みです。
@@ -148,7 +160,13 @@ mkdir -p certs secrets
 cp /path/to/proxy-certificate.json certs/
 printf '%s' 'MJSADMIN_PASSWORD' > secrets/mjs_admin_pass.txt
 chmod 600 secrets/mjs_admin_pass.txt
+sudo chown 1001 secrets/mjs_admin_pass.txt   # コンテナ内の matlab ユーザー (UID 1001) が読めるようにする
 ```
+
+compose の `secrets:`（swarm ではない場合）はホストのファイルをそのまま bind mount するため、ホスト側の所有者と
+パーミッションがコンテナ内でも維持されます。`chmod 600` のままホストの別ユーザー所有になっていると、
+コンテナ内の `matlab` から読めず、`startjobmanager` が空のパスワードで失敗します。
+UID はイメージごとに `docker run --rm --entrypoint id <イメージ名> matlab` で確認できます。
 
 ### 2-2. `.env` の作成
 
@@ -176,15 +194,18 @@ docker compose logs -f matlab-head-node
 コンテナ起動時にエントリポイントが自動で以下を実行します。
 
 1. `readlink -f $(which matlab)` から MATLAB のインストール先を動的に取得
-2. `mjs_def.sh` の `HOSTNAME` を `FQDN` の値に書き換え
-3. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
+2. `mjs_def.sh` をビルド時の内容（`mjs_def.sh.orig`）に戻す。再起動しても設定が重複しないようにするため
+3. `mjs_def.sh` の末尾に `HOSTNAME="$FQDN"` を追記（後に書いた代入が有効になるため、元の `HOSTNAME` 行の書式に依存しない）
+4. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
    `LDAP_URL` / `LDAP_SECURITY_PRINCIPAL_FORMAT` / `LDAP_SYNCHRONIZATION_INTERVAL_SECS`）を追記
-4. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行
-5. `mjs console -clean` を `exec` して PID 1 にする
+5. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行
+6. 前回の起動で残った `/var/run/mjs/mjsd.pid` を削除し（`docker restart` 後に "already running" で終了するのを防ぐため）、`mjs console -clean` を `exec` して PID 1 にする
 
 `SECURITY_LEVEL` が 2 以上の場合、`startjobmanager` は管理者パスワードを **stdin ではなく `/dev/tty` から**読もうとします。
 そのため単純なパイプでは渡せず、`script(1)` で擬似端末を作ってパスワードを流し込んでいます。
 ここを書き換えるときはこの制約に注意してください。
+擬似端末のエコーにより、流し込んだパスワードは `script` の出力にそのまま現れます。`docker logs` に平文で残らないよう、
+`script` の出力を `awk` に通してパスワード文字列を `********` に置き換えています。
 
 ## 3. compute ノードの起動
 
@@ -296,11 +317,11 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
   ジョブマネージャ／ワーカーを起動しています。head が未起動のまま compute を上げると `startworker` は失敗しますが、
   `mjs console` が PID 1 として生き続けるためコンテナは `up` のまま残り、`restart: always` でも復旧しません。
   ワーカーが見えないときはまず `docker compose logs` を確認し、compute を `down` してから起動し直してください。
-- **`mjs_def.sh` への設定は追記式** — LDAP 設定や `SECURITY_LEVEL` は毎回ファイル末尾に追記されます。
-  同じコンテナを `docker compose restart` すると同じ行が重複して蓄積します。設定を変えるときは
-  `docker compose down` でコンテナを破棄してから `up` し直すのが安全です。
-- **コンテナが root で動作** — Dockerfile の最後が `USER root` です（`mjs` の起動に必要）。
-  upstream のイメージは `matlab` ユーザーで終わる点と異なります。
+- **`mjs_def.sh` は起動のたびに作り直される** — entrypoint は毎回 `mjs_def.sh.orig` から復元してから設定を書き込むため、
+  コンテナ内で `mjs_def.sh` を手で編集しても、次の起動で失われます。恒久的に変えたい設定は Dockerfile か compose の entrypoint に書いてください。
+- **SECURITY_LEVEL 3 は使えない** — レベル 3（ジョブを投入ユーザーの権限で実行）は `mjs` を root で動かす必要があり、
+  `matlab` ユーザーで動かすこのイメージでは使えません。
+- **`cap_add` は非 root では効かない** — compose で `SYS_NICE` などを `cap_add` しても、root 以外のプロセスには実効になりません。
 - **AOCL は AMD CPU 前提** — `docker-compose-wNFS.yml` の `BLAS_VERSION` / `LAPACK_VERSION` は AMD 向けです。
   スレッド数を固定する `OMP_NUM_THREADS` / `BLIS_NUM_THREADS` は現在コメントアウトされています
   （MJS ではワーカー 1 つあたり 1 スレッドにするのが一般的です）。
@@ -309,7 +330,8 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 - **プリビルドイメージのバージョン差** — 各 compose にコメントアウトで残っている
   `ghcr.io/wryo813/matlab-parallel-server-full:r2025b` は、Dockerfile の既定 `MATLAB_RELEASE=R2026a` とずれています。
 - **LDAP は平文** — `ldap://` の 389 番を使っており、TLS（`ldaps://`）は未設定です。
-- **UID/GID を固定していない** — NFS 共有と LDAP ユーザーを併用する構成では、ファイル所有権がずれる可能性があります。
+- **UID/GID** — コンテナ内の `matlab` は base イメージで UID/GID 1001 です（R2026b で確認）。NFS 共有に書き込むファイルは
+  この UID で作られるため、NFS サーバー側の所有者・権限と揃える必要があります。
 
 ## upstream への追従
 

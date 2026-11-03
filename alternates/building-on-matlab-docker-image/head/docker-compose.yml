@@ -44,9 +44,17 @@ services:
         START_JOB_MANAGER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startjobmanager"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
 
+        # ビルド時に保存した元の内容 (mjs_def.sh.orig) に戻してから書き換える。
+        # docker compose restart などで同じコンテナを再起動しても、追記した設定行が重複しない
+        if [ -f "$${MJS_DEF_FILE}.orig" ]; then
+            cat "$${MJS_DEF_FILE}.orig" > "$${MJS_DEF_FILE}"
+        fi
+
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
-            sed -i 's|^#HOSTNAME=`hostname -f`|HOSTNAME="'"$${FQDN}"'"|' "$${MJS_DEF_FILE}"
+            # 既存の HOSTNAME 行を sed で置換する方式は、行の書式がリリースで違うと何もせずに終わる。
+            # mjs_def.sh はシェルスクリプトとして読み込まれ、後に書いた代入が有効になるので、末尾に追記する
+            printf '\nHOSTNAME="%s"\n' "$${FQDN}" >> "$${MJS_DEF_FILE}"
         fi
 
         # LDAP認証 / セキュリティ設定を mjs_def.sh 末尾に注入 (R2023a以降のパラメータ)
@@ -77,8 +85,17 @@ services:
             else
                 MJS_ADMIN_PASS="$${MJS_ADMIN_PASS}"
             fi
-            printf '%s\n' "$${MJS_ADMIN_PASS}" | script -q -c "$${START_JOB_MANAGER_BIN} -name $${JM_NAME} -clean -v" /dev/null
+            # PTY のエコーにより、流し込んだパスワードが script の出力 (= docker logs) にそのまま出る。
+            # 出力からパスワード文字列をリテラル一致で伏せ字にしてからログへ流す
+            printf '%s\n' "$${MJS_ADMIN_PASS}" \
+                | script -q -c "$${START_JOB_MANAGER_BIN} -name $${JM_NAME} -clean -v" /dev/null \
+                | MJS_ADMIN_PASS="$${MJS_ADMIN_PASS}" awk '{ p = ENVIRON["MJS_ADMIN_PASS"]; if (p != "") { while ((i = index($$0, p)) > 0) $$0 = substr($$0, 1, i - 1) "********" substr($$0, i + length(p)) } print; fflush() }'
         ) &
+
+        # 前回の起動で残った PID ファイルを消す。docker restart ではコンテナのファイルシステムが残り、
+        # mjsd.pid の中身は前回の PID 1 のまま。mjs は `ps -p 1` で生存を確認するため、新しい entrypoint (PID 1) を
+        # 前回の mjs と誤認し "already running" で終了してしまう。PIDBASE は Dockerfile で /var/run/mjs に設定している
+        rm -f /var/run/mjs/mjsd.pid
 
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
