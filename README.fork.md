@@ -63,8 +63,13 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
   upstream と同様コメントアウトのままです。
 - **実行ユーザー** — upstream と同じく最後は `USER matlab`（UID 1001）で、MJS サービス・ジョブマネージャ・ワーカーも
   すべて `matlab` で動きます。そのために以下を行っています。
-  - `mjs_def.sh` を `matlab` 所有にする（compose の entrypoint が起動時に書き換えるため）
-  - `mjs_def.sh` の既定の `PIDBASE` / `LOGBASE` / `CHECKPOINTBASE`（`/var/run/mjs`、`/var/log/mjs`、`/var/lib/mjs`）を `matlab` 所有で作成する
+  - `mjs_def.sh` を `matlab` 所有にして書き込み権を付ける（compose の entrypoint が起動時に書き換えるため。
+    mpm は 0555 でインストールするので、所有者の変更だけでは書き込めません）
+  - `PIDBASE` を `/var/run/mjs` に変更する（R2026b の既定値は `/var/run` で、root しか書き込めません）
+  - `PIDBASE` / `LOGBASE` / `CHECKPOINTBASE`（`/var/run/mjs`、`/var/log/mjs`、`/var/lib/mjs`）を `matlab` 所有で作成する
+  - MJS 用の Java（`MATLAB_Support_for_OpenJDK`）をビルド時に `/usr/local/share/matlab/mjs/java` へ入れる。
+    `mjs` は Java が見つからないと起動時にこの場所へ自動ダウンロードしますが、その処理は matlabroot への
+    書き込みを伴うため `matlab` ユーザーでは失敗します
   - base イメージが `matlab` に付けている root への NOPASSWD の sudo（`/etc/sudoers.d/matlab`、`/etc/sudoers.d/localsudo`）を削除し、
     `matlab ALL=(matlab) NOPASSWD: ALL`（matlab 自身としての実行だけ）に置き換える。コンテナ内で root に昇格できなくするためです。
     base イメージの既定 ENTRYPOINT（`/bin/run.sh`、`-shell` / `-browser` / `-vnc`）は matlab で起動しても `sudo --user matlab` を実行するため、
@@ -197,6 +202,8 @@ docker compose logs -f matlab-head-node
 `SECURITY_LEVEL` が 2 以上の場合、`startjobmanager` は管理者パスワードを **stdin ではなく `/dev/tty` から**読もうとします。
 そのため単純なパイプでは渡せず、`script(1)` で擬似端末を作ってパスワードを流し込んでいます。
 ここを書き換えるときはこの制約に注意してください。
+擬似端末のエコーにより、流し込んだパスワードは `script` の出力にそのまま現れます。`docker logs` に平文で残らないよう、
+`script` の出力を `awk` に通してパスワード文字列を `********` に置き換えています。
 
 ## 3. compute ノードの起動
 

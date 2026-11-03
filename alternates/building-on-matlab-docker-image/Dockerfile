@@ -388,8 +388,13 @@ ENV MW_DDUX_FORCE_ENABLE=true MW_CONTEXT_TAGS=$MW_CONTEXT_TAGS,MATLAB:TOOLBOXES:
 # 以降の設定変更は root で行い、最後に matlab ユーザーへ戻す
 USER root
 # mjs_def.sh の編集 (オンラインライセンス設定) と、MJS を matlab ユーザーで動かすための準備
-# - mjs_def.sh: compose の entrypoint が起動時に HOSTNAME / SECURITY_LEVEL / LDAP 設定を書き込むため matlab 所有にする
-# - PIDBASE / LOGBASE / CHECKPOINTBASE: mjs_def.sh の既定値 (/var/run/mjs, /var/log/mjs, /var/lib/mjs) を matlab 所有で作成する
+# - mjs_def.sh: compose の entrypoint が起動時に HOSTNAME / SECURITY_LEVEL / LDAP 設定を書き込むため matlab 所有にし、
+#   書き込み権を付ける (mpm は 0555 でインストールするため、所有者を変えるだけでは書き込めない)
+# - PIDBASE: R2026b の既定値は /var/run で root しか書けないため、/var/run/mjs に変更する
+# - PIDBASE / LOGBASE / CHECKPOINTBASE (/var/run/mjs, /var/log/mjs, /var/lib/mjs) を matlab 所有で作成する
+# - MJS 用 Java: mjs は起動時に Java が無いと MJS_JAVA の既定値 (/usr/local/share/matlab/mjs/java) へ
+#   mpm で MATLAB_Support_for_OpenJDK を入れようとする。この処理は matlabroot への書き込みが必要で
+#   matlab ユーザーでは失敗するため、ビルド時に root で同じ手順を実行しておく (toolbox/parallel/bin/util/getMJSJava.sh と同じ手順)
 # - sudoers: base イメージが matlab に付与している root への NOPASSWD sudo を削除し、コンテナ内で root に昇格できないようにする。
 #   base イメージの /bin/run.sh (-shell / -browser / -vnc 等の既定 ENTRYPOINT) は matlab 自身に対しても
 #   `sudo --user matlab` を実行するため、matlab として実行する権限だけは残す
@@ -397,8 +402,19 @@ RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))
     && MJS_DEF_FILE="${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/mjs_def.sh" \
     && if [ -f "${MJS_DEF_FILE}" ]; then \
            sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}" \
-           && chown matlab:matlab "${MJS_DEF_FILE}"; \
+           && sed -i 's|^#*\s*PIDBASE=.*|PIDBASE="/var/run/mjs"|' "${MJS_DEF_FILE}" \
+           && chown matlab:matlab "${MJS_DEF_FILE}" \
+           && chmod u+w "${MJS_DEF_FILE}"; \
        fi \
+    && MJS_JAVA=/usr/local/share/matlab/mjs/java \
+    && SPROOT_WRITER="${EXISTING_MATLAB_LOCATION}/bin/glnxa64/sprootsettingwriter" \
+    && mkdir -p "${MJS_JAVA}" \
+    && wget -q -P "${MJS_JAVA}" https://www.mathworks.com/mpm/glnxa64/mpm \
+    && chmod +x "${MJS_JAVA}/mpm" \
+    && "${SPROOT_WRITER}" -matlabroot "${EXISTING_MATLAB_LOCATION}" -sproot "${MJS_JAVA}" \
+    && "${MJS_JAVA}/mpm" install --release=${MATLAB_RELEASE} --destination="${EXISTING_MATLAB_LOCATION}" --products=MATLAB_Support_for_OpenJDK \
+    && "${SPROOT_WRITER}" -matlabroot "${EXISTING_MATLAB_LOCATION}" -sproot "__DEFAULT__" \
+    && rm -f "${MJS_JAVA}/mpm" \
     && mkdir -p /var/run/mjs /var/log/mjs /var/lib/mjs \
     && chown matlab:matlab /var/run/mjs /var/log/mjs /var/lib/mjs \
     && rm -f /etc/sudoers.d/matlab /etc/sudoers.d/localsudo \
