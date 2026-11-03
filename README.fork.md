@@ -307,7 +307,7 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 | 項目 | 値 | 場所 |
 | --- | --- | --- |
 | AOCL BLAS/LAPACK | `libaocl.so` | `compute/docker-compose-wNFS.yml` |
-| プロキシイメージ | `ghcr.io/mathworks/parallel-server-proxy:v1.0.1` | `head/docker-compose.yml` |
+| プロキシイメージ | `ghcr.io/mathworks/parallel-server-proxy:v1.0.4` | `head/docker-compose.yml` |
 | 証明書のパス | `./certs/proxy-certificate.json` | `head/docker-compose.yml` の `secrets:` |
 | パスワードのパス | `./secrets/mjs_admin_pass.txt` | `head/docker-compose.yml` の `secrets:` |
 

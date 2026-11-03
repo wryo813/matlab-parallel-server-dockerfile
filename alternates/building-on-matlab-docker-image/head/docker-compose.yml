@@ -101,7 +101,7 @@ services:
         exec "$${MJS_BIN}" console -clean
 
   matlab-mjs-proxy:
-    image: ghcr.io/mathworks/parallel-server-proxy:v1.0.1
+    image: ghcr.io/mathworks/parallel-server-proxy:v1.0.4
     container_name: matlab-mjs-proxy
     network_mode: host
     restart: always
