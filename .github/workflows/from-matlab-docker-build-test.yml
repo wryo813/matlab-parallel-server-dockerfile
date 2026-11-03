@@ -22,6 +22,7 @@ env:
   IMAGE_BASE_NAME: from-matlab-docker
   ALT_PATH: alternates/building-on-matlab-docker-image
   LICENSE_FILE_PATH: ${{ github.workspace }}/license.lic
+  MATLAB_BATCH_PATH: ${{ github.workspace }}/matlab-batch/matlab-batch
 
 jobs:
   build-test-image:
@@ -73,8 +74,17 @@ jobs:
       - name: Generate license file
         run: echo '${{ secrets.MATLAB_LICENSE_FILE }}' > ${{ env.LICENSE_FILE_PATH }}
 
+      # MATLAB を起動するテストは batch licensing token (secret MATLAB_BATCH_TOKEN) で実行する。
+      # token は matlab-batch 経由でしか使えないため、ランナーにダウンロードしてテストからコンテナへマウントする。
+      - name: Download matlab-batch
+        run: |
+          mkdir -p "$(dirname "${{ env.MATLAB_BATCH_PATH }}")"
+          wget -q -O "${{ env.MATLAB_BATCH_PATH }}" https://ssd.mathworks.com/supportfiles/ci/matlab-batch/v1/glnxa64/matlab-batch
+          chmod a+rx "${{ env.MATLAB_BATCH_PATH }}"
+
       - name: Test container
         working-directory: tests
         env:
           IMAGE_NAME: ${{ env.IMAGE_BASE_NAME }}:${{ matrix.matlab-release }}
+          BATCH_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
         run: python -m unittest -v ${{ env.ALT_PATH }}/*.py
