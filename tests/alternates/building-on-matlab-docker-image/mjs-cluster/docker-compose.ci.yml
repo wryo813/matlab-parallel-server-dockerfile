@@ -1,0 +1,33 @@
+# CI 用の上書き設定。head/docker-compose.yml と compute/docker-compose.yml に重ねて使う (run-cluster-test.sh を参照)。
+#
+# 本番は head と compute を別ホストで network_mode: host にするが、1 台のランナーで両方を host ネットワークにすると
+# 同じ BASE_PORT を取り合って起動できない。そのため CI では両方を 1 つの bridge ネットワークに入れ、
+# FQDN の既定値 (head.matlab.internal / compute.matlab.internal) をネットワークのエイリアスとして解決させる。
+# entrypoint、環境変数、secret、ipc: host は本番の compose のまま使う。
+services:
+  matlab-head-node:
+    image: ${MJS_TEST_IMAGE:?MJS_TEST_IMAGE is required}
+    pull_policy: never
+    network_mode: !reset null
+    networks:
+      mjs:
+        aliases:
+          - head.matlab.internal
+    # テスト LDAP はランナー (ホスト) 上で動かすため、コンテナからホストへ届く名前を用意する
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    # 失敗したコンテナが再起動を繰り返してログが流れないよう、CI では自動再起動しない
+    restart: "no"
+
+  matlab-compute-node:
+    image: ${MJS_TEST_IMAGE:?MJS_TEST_IMAGE is required}
+    pull_policy: never
+    network_mode: !reset null
+    networks:
+      mjs:
+        aliases:
+          - compute.matlab.internal
+    restart: "no"
+
+networks:
+  mjs: {}
