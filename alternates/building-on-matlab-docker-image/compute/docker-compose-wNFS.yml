@@ -40,6 +40,12 @@ services:
         START_WORKER_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/startworker"
         NODESTATUS_BIN="$${EXISTING_MATLAB_LOCATION}/toolbox/parallel/bin/nodestatus"
 
+        # ビルド時に保存した元の内容 (mjs_def.sh.orig) に戻してから書き換える。
+        # docker compose restart などで同じコンテナを再起動しても、追記した設定行が重複しない
+        if [ -f "$${MJS_DEF_FILE}.orig" ]; then
+            cat "$${MJS_DEF_FILE}.orig" > "$${MJS_DEF_FILE}"
+        fi
+
         # FQDNの書き換え処理
         if [ -n "$${FQDN}" ] && [ -f "$${MJS_DEF_FILE}" ]; then
             # matlab ユーザーは mjs_def.sh のあるディレクトリに書き込めず sed -i が一時ファイルを作れないため、

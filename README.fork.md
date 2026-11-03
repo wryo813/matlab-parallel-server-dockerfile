@@ -64,7 +64,8 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
 - **実行ユーザー** — upstream と同じく最後は `USER matlab`（UID 1001）で、MJS サービス・ジョブマネージャ・ワーカーも
   すべて `matlab` で動きます。そのために以下を行っています。
   - `mjs_def.sh` を `matlab` 所有にして書き込み権を付ける（compose の entrypoint が起動時に書き換えるため。
-    mpm は 0555 でインストールするので、所有者の変更だけでは書き込めません）
+    mpm は 0555 でインストールするので、所有者の変更だけでは書き込めません）。
+    ビルド時点の内容は `mjs_def.sh.orig`（root 所有・読み取り専用）として保存し、entrypoint は起動のたびにそこから復元します
   - `PIDBASE` を `/var/run/mjs` に変更する（R2026b の既定値は `/var/run` で、root しか書き込めません）
   - `PIDBASE` / `LOGBASE` / `CHECKPOINTBASE`（`/var/run/mjs`、`/var/log/mjs`、`/var/lib/mjs`）を `matlab` 所有で作成する
   - MJS 用の Java（`MATLAB_Support_for_OpenJDK`）をビルド時に `/usr/local/share/matlab/mjs/java` へ入れる。
@@ -193,11 +194,12 @@ docker compose logs -f matlab-head-node
 コンテナ起動時にエントリポイントが自動で以下を実行します。
 
 1. `readlink -f $(which matlab)` から MATLAB のインストール先を動的に取得
-2. `mjs_def.sh` の `HOSTNAME` を `FQDN` の値に書き換え
-3. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
+2. `mjs_def.sh` をビルド時の内容（`mjs_def.sh.orig`）に戻す。再起動しても設定が重複しないようにするため
+3. `mjs_def.sh` の `HOSTNAME` を `FQDN` の値に書き換え
+4. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
    `LDAP_URL` / `LDAP_SECURITY_PRINCIPAL_FORMAT` / `LDAP_SYNCHRONIZATION_INTERVAL_SECS`）を追記
-4. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行
-5. `mjs console -clean` を `exec` して PID 1 にする
+5. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行
+6. `mjs console -clean` を `exec` して PID 1 にする
 
 `SECURITY_LEVEL` が 2 以上の場合、`startjobmanager` は管理者パスワードを **stdin ではなく `/dev/tty` から**読もうとします。
 そのため単純なパイプでは渡せず、`script(1)` で擬似端末を作ってパスワードを流し込んでいます。
@@ -315,9 +317,8 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
   ジョブマネージャ／ワーカーを起動しています。head が未起動のまま compute を上げると `startworker` は失敗しますが、
   `mjs console` が PID 1 として生き続けるためコンテナは `up` のまま残り、`restart: always` でも復旧しません。
   ワーカーが見えないときはまず `docker compose logs` を確認し、compute を `down` してから起動し直してください。
-- **`mjs_def.sh` への設定は追記式** — LDAP 設定や `SECURITY_LEVEL` は毎回ファイル末尾に追記されます。
-  同じコンテナを `docker compose restart` すると同じ行が重複して蓄積します。設定を変えるときは
-  `docker compose down` でコンテナを破棄してから `up` し直すのが安全です。
+- **`mjs_def.sh` は起動のたびに作り直される** — entrypoint は毎回 `mjs_def.sh.orig` から復元してから設定を書き込むため、
+  コンテナ内で `mjs_def.sh` を手で編集しても、次の起動で失われます。恒久的に変えたい設定は Dockerfile か compose の entrypoint に書いてください。
 - **SECURITY_LEVEL 3 は使えない** — レベル 3（ジョブを投入ユーザーの権限で実行）は `mjs` を root で動かす必要があり、
   `matlab` ユーザーで動かすこのイメージでは使えません。
 - **`cap_add` は非 root では効かない** — compose で `SYS_NICE` などを `cap_add` しても、root 以外のプロセスには実効になりません。

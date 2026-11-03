@@ -390,6 +390,7 @@ USER root
 # mjs_def.sh の編集 (オンラインライセンス設定) と、MJS を matlab ユーザーで動かすための準備
 # - mjs_def.sh: compose の entrypoint が起動時に HOSTNAME / SECURITY_LEVEL / LDAP 設定を書き込むため matlab 所有にし、
 #   書き込み権を付ける (mpm は 0555 でインストールするため、所有者を変えるだけでは書き込めない)
+#   ビルド時点の内容を mjs_def.sh.orig (root 所有・読み取り専用) として保存し、entrypoint は起動のたびにそこから復元する
 # - PIDBASE: R2026b の既定値は /var/run で root しか書けないため、/var/run/mjs に変更する
 # - PIDBASE / LOGBASE / CHECKPOINTBASE (/var/run/mjs, /var/log/mjs, /var/lib/mjs) を matlab 所有で作成する
 # - MJS 用 Java: mjs は起動時に Java が無いと MJS_JAVA の既定値 (/usr/local/share/matlab/mjs/java) へ
@@ -403,6 +404,7 @@ RUN EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))
     && if [ -f "${MJS_DEF_FILE}" ]; then \
            sed -i 's/^#*\s*USE_ONLINE_LICENSING=.*/USE_ONLINE_LICENSING="true"/' "${MJS_DEF_FILE}" \
            && sed -i 's|^#*\s*PIDBASE=.*|PIDBASE="/var/run/mjs"|' "${MJS_DEF_FILE}" \
+           && cp -p "${MJS_DEF_FILE}" "${MJS_DEF_FILE}.orig" \
            && chown matlab:matlab "${MJS_DEF_FILE}" \
            && chmod u+w "${MJS_DEF_FILE}"; \
        fi \
