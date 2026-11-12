@@ -1,5 +1,5 @@
 ########################################################################
-## Configuration File for Installing or Downloading R2022a MathWorks Products
+## Configuration File for Installing or Downloading R2023b MathWorks Products
 ########################################################################
 ##
 ## Use this file to configure the installation or download of MathWorks 
@@ -31,12 +31,14 @@
 ## RELEASE
 ########################################################################
 ##
-## By default, mpm gets the latest versions of R2022a MathWorks products
+## By default, mpm gets the latest versions of R2023b MathWorks products
 ## and support packages using this input file.
 ##
-## To get a specific update for R2022a, set the desired update
+## To get a specific update for R2023b, set the desired update
 ## number (for example, 1, 2, 3, and so on) and uncomment the following
 ## line. An updateLevel of 0 gets the general release.
+##
+## This option is not available if you specify a source.
 
 # updateLevel=0
 
@@ -71,6 +73,27 @@
 
 # destinationFolder=
 
+
+########################################################################
+## SOURCE FOLDER (INSTALL ONLY)
+########################################################################
+##
+## Specify the full path to the folder that contains the product files
+## you want to install from.
+##
+##   Example:
+##   (Windows) source=C:\Users\<USER>\Downloads\MathWorks
+##   (Linux/macOS) source=/home/<USER>/downloads/mathworks
+##
+## If using the product ISO, extract or mount the image first.
+##
+## This option is not available if you specify an updateLevel.
+##
+## Set the desired value for source and uncomment the following line.
+
+# source=
+
+
 ########################################################################
 ## ACCEPT VENDOR LICENSE AGREEMENTS
 ########################################################################
@@ -98,6 +121,7 @@
 #product.Automated_Driving_Toolbox
 #product.Bioinformatics_Toolbox
 #product.Bluetooth_Toolbox
+#product.C2000_Microcontroller_Blockset
 #product.Communications_Toolbox
 #product.Computer_Vision_Toolbox
 #product.Control_System_Toolbox
@@ -134,8 +158,10 @@
 #product.MATLAB_Parallel_Server
 #product.MATLAB_Production_Server
 #product.MATLAB_Report_Generator
+#product.MATLAB_Test
 #product.MATLAB_Web_App_Server
 #product.Mapping_Toolbox
+#product.Medical_Imaging_Toolbox
 #product.Mixed-Signal_Blockset
 #product.Model_Predictive_Control_Toolbox
 #product.Model-Based_Calibration_Toolbox
@@ -149,6 +175,7 @@
 #product.Polyspace_Bug_Finder_Server
 #product.Polyspace_Code_Prover
 #product.Polyspace_Code_Prover_Server
+#product.Polyspace_Test
 #product.Powertrain_Blockset
 #product.Predictive_Maintenance_Toolbox
 #product.RF_Blockset
@@ -169,6 +196,7 @@
 #product.SimBiology
 #product.SimEvents
 #product.Simscape
+#product.Simscape_Battery
 #product.Simscape_Driveline
 #product.Simscape_Electrical
 #product.Simscape_Fluids
@@ -183,6 +211,7 @@
 #product.Simulink_Design_Optimization
 #product.Simulink_Design_Verifier
 #product.Simulink_Desktop_Real-Time
+#product.Simulink_Fault_Analyzer
 #product.Simulink_PLC_Coder
 #product.Simulink_Real-Time
 #product.Simulink_Report_Generator
@@ -212,24 +241,30 @@
 ## Uncomment the lines for the support packages you want to install or download.
 
 #product.Aerospace_Blockset_Interface_for_Unreal_Engine_Projects
+#product.ASIC_Testbench_for_HDL_Verifier
 #product.Automated_Driving_Toolbox_Importer_for_Zenrin_Japan_Map_API_3.0_(Itsumo_NAVI_API_3.0)_Service
 #product.Automated_Driving_Toolbox_Interface_for_Unreal_Engine_4_Projects
-#product.Bioinformatics_Toolbox_Interface_for_Bowtie_Aligner
+#product.Automated_Driving_Toolbox_Model_for_Lidar_Lane_Detection
 #product.CI/CD_Automation_for_Simulink_Check
-#product.Communications_Toolbox_Library_for_ZigBee_and_UWB
 #product.Communications_Toolbox_Support_Package_for_Analog_Devices_ADALM-Pluto_Radio
 #product.Communications_Toolbox_Support_Package_for_RTL-SDR_Radio
 #product.Communications_Toolbox_Support_Package_for_USRP_Embedded_Series_Radio
 #product.Communications_Toolbox_Support_Package_for_USRP_Radio
 #product.Communications_Toolbox_Support_Package_for_Xilinx_Zynq-Based_Radio
+#product.Communications_Toolbox_Wireless_Network_Simulation_Library
 #product.Component_Deployment_Guideline_for_Embedded_Coder
+#product.Computer_Vision_Toolbox_Automated_Visual_Inspection_Library
 #product.Computer_Vision_Toolbox_Interface_for_OpenCV_in_MATLAB
 #product.Computer_Vision_Toolbox_Interface_for_OpenCV_in_Simulink
 #product.Computer_Vision_Toolbox_Model_for_Inflated-3D_Video_Classification
 #product.Computer_Vision_Toolbox_Model_for_Mask_R-CNN_Instance_Segmentation
+#product.Computer_Vision_Toolbox_Model_for_Object_Keypoint_Detection
 #product.Computer_Vision_Toolbox_Model_for_R(2+1)D_Video_Classification
 #product.Computer_Vision_Toolbox_Model_for_SlowFast_Video_Classification
+#product.Computer_Vision_Toolbox_Model_for_SOLOv2_Instance_Segmentation
 #product.Computer_Vision_Toolbox_Model_for_Text_Detection
+#product.Computer_Vision_Toolbox_Model_for_Vision_Transformer_Network
+#product.Computer_Vision_Toolbox_Model_for_YOLO_v2_Object_Detection
 #product.Computer_Vision_Toolbox_Model_for_YOLO_v3_Object_Detection
 #product.Computer_Vision_Toolbox_Model_for_YOLO_v4_Object_Detection
 #product.Computer_Vision_Toolbox_OCR_Language_Data
@@ -238,12 +273,11 @@
 #product.Data_Acquisition_Toolbox_Support_Package_for_Measurement_Computing_Hardware
 #product.Data_Acquisition_Toolbox_Support_Package_for_National_Instruments_NI-DAQmx_Devices
 #product.Data_Acquisition_Toolbox_Support_Package_for_Windows_Sound_Cards
-#product.Database_Toolbox_Interface_for_Apache_Cassandra
-#product.Database_Toolbox_Interface_for_MongoDB
 #product.Database_Toolbox_Interface_for_Neo4j_Bolt_Protocol
 #product.Deep_Learning_HDL_Toolbox_Support_Package_for_Intel_FPGA_and_SoC_Devices
 #product.Deep_Learning_HDL_Toolbox_Support_Package_for_Xilinx_FPGA_and_SoC_Devices
 #product.Deep_Learning_Toolbox_Converter_for_ONNX_Model_Format
+#product.Deep_Learning_Toolbox_Converter_for_PyTorch_Model_Format
 #product.Deep_Learning_Toolbox_Converter_for_TensorFlow_models
 #product.Deep_Learning_Toolbox_Importer_for_Caffe_Models
 #product.Deep_Learning_Toolbox_Interface_for_TensorFlow_Lite
@@ -267,17 +301,20 @@
 #product.Deep_Learning_Toolbox_Model_for_VGG-19_Network
 #product.Deep_Learning_Toolbox_Model_for_Xception_Network
 #product.Deep_Learning_Toolbox_Model_Quantization_Library
+#product.Deep_Learning_Toolbox_Verification_Library
 #product.Embedded_Coder_Interface_to_QEMU_Emulator
 #product.Embedded_Coder_Support_Package_for_ARM_Cortex-A_Processors
 #product.Embedded_Coder_Support_Package_for_ARM_Cortex-M_Processors
 #product.Embedded_Coder_Support_Package_for_ARM_Cortex-R_Processors
 #product.Embedded_Coder_Support_Package_for_BeagleBone_Black_Hardware
+#product.Embedded_Coder_Support_Package_for_Infineon_AURIX_TC4x_Microcontrollers
 #product.Embedded_Coder_Support_Package_for_Intel_SoC_Devices
 #product.Embedded_Coder_Support_Package_For_Linux_Applications
 #product.Embedded_Coder_Support_Package_for_STMicroelectronics_STM32_Processors
-#product.Embedded_Coder_Support_Package_for_Texas_Instruments_C2000_Processors
 #product.Embedded_Coder_Support_Package_for_Xilinx_Zynq_Platform
 #product.Ephemeris_Data_for_Aerospace_Toolbox
+#product.Extended_Tire_Features_for_Vehicle_Dynamics_Blockset
+#product.FMU_Builder_For_Simulink
 #product.Geoid_Data_for_Aerospace_Toolbox
 #product.GPU_Coder_Interface_for_Deep_Learning_Libraries
 #product.GUIDE_to_App_Designer_Migration_Tool_for_MATLAB
@@ -312,6 +349,7 @@
 #product.Instrument_Control_Toolbox_Support_Package_for_National_Instruments_VISA_and_ICP_Interfaces
 #product.Instrument_Control_Toolbox_Support_Package_for_Rohde_Schwarz_VISA_Interface
 #product.Instrument_Control_Toolbox_Support_Package_for_Total_Phase_Aardvark_I2C/SPI_Interface
+#product.Integro-Differential_Modeling_Framework_for_MATLAB
 #product.Lidar_Toolbox_Support_Package_for_Ouster_Lidar_Sensors
 #product.Lidar_Toolbox_Support_Package_for_Velodyne_LiDAR_Sensors
 #product.MATLAB_Basemap_Data_-_bluegreen
@@ -331,23 +369,24 @@
 #product.MATLAB_Support_Package_for_IP_Cameras
 #product.MATLAB_Support_Package_for_LEGO_MINDSTORMS_EV3_Hardware
 #product.MATLAB_Support_Package_for_Parrot_Drones
+#product.MATLAB_Support_Package_for_Quantum_Computing
 #product.MATLAB_Support_Package_for_Raspberry_Pi_Hardware
 #product.MATLAB_Support_Package_for_Ryze_Tello_Drones
 #product.MATLAB_Support_Package_for_USB_Webcams
+#product.Medical_Imaging_Toolbox_Interface_for_Cellpose
 #product.Mixed-Signal_Blockset_Models
-#product.Model_Risk_Manager_for_MATLAB
-#product.Parallel_Computing_Toolbox_plugin_for_MATLAB_Parallel_Server_with_AWS_Batch
-#product.Parallel_Computing_Toolbox_plugin_for_MATLAB_Parallel_Server_with_Grid_Engine
-#product.Parallel_Computing_Toolbox_plugin_for_MATLAB_Parallel_Server_with_HTCondor
-#product.Parallel_Computing_Toolbox_plugin_for_MATLAB_Parallel_Server_with_IBM_Platform_LSF
-#product.Parallel_Computing_Toolbox_plugin_for_MATLAB_Parallel_Server_with_PBS
-#product.Parallel_Computing_Toolbox_plugin_for_MATLAB_Parallel_Server_with_Slurm
+#product.Modelscape_for_MATLAB
+#product.New_Desktop_for_MATLAB_Tech_Preview
 #product.Powertrain_Blockset_Drive_Cycle_Data
+#product.Radar_Toolbox_Support_Package_for_Texas_Instruments_mmWave_Radar_Sensors
 #product.RF_Blockset_Models_for_Analog_Devices_RF_Transceivers
 #product.Robotics_System_Toolbox_Robot_Library_Data
-#product.Robotics_System_Toolbox_Support_Package_for_Manipulators
+#product.Robotics_System_Toolbox_Support_Package_for_KINOVA_Gen3_Manipulators
+#product.Robotics_System_Toolbox_Support_Package_for_Universal_Robots_UR_Series_Manipulators
 #product.ROS_Toolbox_Support_Package_for_TurtleBot-Based_Robots
-#product.SerDes_Toolbox_Interface_for_SiSoft_Quantum_Channel_Designer_and_QSI_Software
+#product.Scenario_Builder_for_Automated_Driving_Toolbox
+#product.Scenario_Variant_Generator_for_Automated_Driving_Toolbox
+#product.Signal_Processing_Toolbox_Support_Package_for_Linux_IIO_Devices
 #product.Simulink_Coder_Support_Package_for_ARM_Cortex-based_VEX_Microcontroller
 #product.Simulink_Coder_Support_Package_for_BBC_microbit_Board
 #product.Simulink_Coder_Support_Package_for_BeagleBone_Blue_Hardware
@@ -359,26 +398,31 @@
 #product.Simulink_Real-Time_Target_Support_Package
 #product.Simulink_Real-Time_XIL_Support_Package
 #product.Simulink_Support_Package_for_Android_Devices
-#product.Simulink_Support_Package_for_Apple_iOS_Devices
 #product.Simulink_Support_Package_for_Arduino_Hardware
 #product.Simulink_Support_Package_for_LEGO_MINDSTORMS_EV3_Hardware
 #product.Simulink_Support_Package_for_Parrot_Minidrones
 #product.Simulink_Support_Package_for_Raspberry_Pi_Hardware
 #product.Simulink_Test_Support_Package_for_ASAM_XIL
+#product.SoC_Blockset_Support_Package_for_AMD-Xilinx_Versal_ACAP_Devices
 #product.SoC_Blockset_Support_Package_for_Embedded_Linux_Devices
+#product.SoC_Blockset_Support_Package_for_Infineon_AURIX_Microcontrollers
 #product.SoC_Blockset_Support_Package_for_Intel_Devices
-#product.SoC_Blockset_Support_Package_for_Texas_Instruments_C2000_Processors
 #product.SoC_Blockset_Support_Package_for_Xilinx_Devices
 #product.Source_control_integration_with_Microsoft(R)_Source-Code_Control_Interface_(MSSCCI)_for_MATLAB_and_Simulink
+#product.Streaming_Data_Framework_for_MATLAB_Production_Server
+#product.Text_Analytics_Toolbox_Model_for_BERT-Base_Multilingual_Cased_Network
+#product.Text_Analytics_Toolbox_Model_for_BERT-Base_Network
+#product.Text_Analytics_Toolbox_Model_for_BERT-Large_Network
+#product.Text_Analytics_Toolbox_Model_for_BERT-Mini_Network
+#product.Text_Analytics_Toolbox_Model_for_BERT-Small_Network
+#product.Text_Analytics_Toolbox_Model_for_BERT-Tiny_Network
 #product.Text_Analytics_Toolbox_Model_for_fastText_English_16_Billion_Token_Word_Embedding
+#product.Text_Analytics_Toolbox_Model_from_UDify_Data
 #product.UAV_Toolbox_Interface_for_Unreal_Engine_Projects
 #product.UAV_Toolbox_Support_Package_for_PX4_Autopilots
+#product.Variant_Manager_for_Simulink
 #product.Vehicle_Dynamics_Blockset_Interface_for_Unreal_Engine_4_Projects
 #product.Vehicle_Dynamics_Blockset_Maneuver_Data
-#product.Vehicle_Network_Toolbox_Support_Package_for_Kvaser_CAN_devices
-#product.Vehicle_Network_Toolbox_Support_Package_for_National_Instruments_NI-XNET_CAN_devices
-#product.Vehicle_Network_Toolbox_Support_Package_for_PEAK-System_CAN_devices
-#product.Vehicle_Network_Toolbox_Support_Package_for_Vector_CAN_devices
 #product.Vision_HDL_Toolbox_Support_Package_for_Xilinx_Zynq-Based_Hardware
 #product.WINNER_II_Channel_Model_for_Communications_Toolbox
 #product.Wireless_Testbench_Support_Package_for_NI_USRP_Radios
@@ -391,4 +435,4 @@
 ## check the integrity of the input file. Changing the value
 ## of the checksum field invalidates this input file.
 
-?checksum=UjIwMjJh
+?checksum=UjIwMjNi

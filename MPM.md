@@ -21,6 +21,11 @@ If you encounter a technical issue or have an enhancement request, create an iss
 
 ## Changelog
 
+### 2026.9 - November 11, 2026
+- **Added**: Install MATLAB Runtime by specifying `--products=MATLAB_Runtime` and `--release` with `mpm install`. `MATLAB_Runtime` must be the only product in the `--products` list. You can also use the `--destination`, `--no-gpu`, and `--no-jre` options.
+- **Added**: Specify a local installation source in an input file by using the `source` option. This option applies to `mpm install` only.
+- **Changed**: Input files on GitHub now use hyphens instead of underscores. For example, `mpm_input_r2026b.txt` is now `mpm-input-r2026b.txt`. Any script, CI pipeline or Dockerfile that downloads input files by their old URL or name must switch to the new hyphenated name.
+
 ### 2026.8 - October 15, 2026
 - **Changed**: Internal improvements and bug fixes.
 

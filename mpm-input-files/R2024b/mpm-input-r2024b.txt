@@ -1,8 +1,8 @@
 ########################################################################
-## Configuration File for Installing or Downloading R2025b MathWorks Products
+## Configuration File for Installing or Downloading R2024b MathWorks Products
 ########################################################################
 ##
-## Use this file to configure the installation or download of MathWorks
+## Use this file to configure the installation or download of MathWorks 
 ## products and support packages from the command line using the
 ## MATLAB Package Manager (mpm).
 ##
@@ -14,7 +14,7 @@
 ##
 ## 2. Run mpm from the command line, using the --inputfile option
 ##    to specify the full path to this configuration file.
-##
+##    
 ##    Install products:
 ##    mpm install --inputfile <full_path_to_this_file>
 ##
@@ -31,12 +31,14 @@
 ## RELEASE
 ########################################################################
 ##
-## By default, mpm gets the latest versions of R2025b MathWorks products
+## By default, mpm gets the latest versions of R2024b MathWorks products
 ## and support packages using this input file.
 ##
-## To get a specific update for R2025b, set the desired update
+## To get a specific update for R2024b, set the desired update
 ## number (for example, 1, 2, 3, and so on) and uncomment the following
 ## line. An updateLevel of 0 gets the general release.
+##
+## This option is not available if you specify a source.
 
 # updateLevel=0
 
@@ -48,7 +50,7 @@
 ## When installing products using 'mpm install':
 ##
 ##   Specify the full path to the folder where you want to install the
-##   products. When adding products or support packages to an
+##   products. When adding products or support packages to an 
 ##   existing MATLAB installation, specify the full path to the folder
 ##   where MATLAB is installed.
 ##
@@ -71,23 +73,26 @@
 
 # destinationFolder=
 
+
 ########################################################################
-## SUPPORT PACKAGE DESTINATION
+## SOURCE FOLDER (INSTALL ONLY)
 ########################################################################
 ##
-## Specify the full path to the folder where you want to install
-## support packages. If not specified, support packages are installed
-## to the default support package location.
+## Specify the full path to the folder that contains the product files
+## you want to install from.
 ##
 ##   Example:
-##   (Windows) supportPackageDestinationFolder=C:\shared\spkgs
-##   (Linux) supportPackageDestinationFolder=/home/<USER>/spkgs
-##   (Mac) supportPackageDestinationFolder=/home/<USER>/spkgs
+##   (Windows) source=C:\Users\<USER>\Downloads\MathWorks
+##   (Linux/macOS) source=/home/<USER>/downloads/mathworks
 ##
-## Set the desired value for supportPackageDestinationFolder and
-## uncomment the following line.
+## If using the product ISO, extract or mount the image first.
+##
+## This option is not available if you specify an updateLevel.
+##
+## Set the desired value for source and uncomment the following line.
 
-# supportPackageDestinationFolder=
+# source=
+
 
 ########################################################################
 ## ACCEPT VENDOR LICENSE AGREEMENTS
@@ -131,6 +136,7 @@
 #product.Deep_Learning_Toolbox
 #product.Econometrics_Toolbox
 #product.Embedded_Coder
+#product.Filter_Design_HDL_Coder
 #product.Financial_Instruments_Toolbox
 #product.Financial_Toolbox
 #product.Fixed-Point_Designer
@@ -252,14 +258,12 @@
 #product.Component_Deployment_Guideline_for_Embedded_Coder
 #product.Computer_Vision_Toolbox_Interface_for_OpenCV_in_MATLAB
 #product.Computer_Vision_Toolbox_Interface_for_OpenCV_in_Simulink
-#product.Computer_Vision_Toolbox_Model_for_BiSeNet_v2_Semantic_Segmentation_Network
 #product.Computer_Vision_Toolbox_Model_for_Inflated-3D_Video_Classification
 #product.Computer_Vision_Toolbox_Model_for_Mask_R-CNN_Instance_Segmentation
 #product.Computer_Vision_Toolbox_Model_for_Object_Keypoint_Detection
 #product.Computer_Vision_Toolbox_Model_for_Pose_Mask_R-CNN_6-DoF_Object_Pose_Estimation
 #product.Computer_Vision_Toolbox_Model_for_R(2+1)D_Video_Classification
 #product.Computer_Vision_Toolbox_Model_for_RAFT_Optical_Flow_Estimation
-#product.Computer_Vision_Toolbox_Model_for_RetinaFace_Face_Detection
 #product.Computer_Vision_Toolbox_Model_for_RTMDet_Object_Detection
 #product.Computer_Vision_Toolbox_Model_for_SlowFast_Video_Classification
 #product.Computer_Vision_Toolbox_Model_for_SOLOv2_Instance_Segmentation
@@ -276,14 +280,13 @@
 #product.Data_Acquisition_Toolbox_Support_Package_for_Windows_Sound_Cards
 #product.Database_Toolbox_Interface_for_Neo4j_Bolt_Protocol
 #product.Databricks_ODBC_Driver_for_Database_Toolbox
-#product.Deep_Learning_HDL_Toolbox_Support_Package_for_AMD_FPGA_and_SoC_Devices
 #product.Deep_Learning_HDL_Toolbox_Support_Package_for_Intel_FPGA_and_SoC_Devices
+#product.Deep_Learning_HDL_Toolbox_Support_Package_for_Xilinx_FPGA_and_SoC_Devices
 #product.Deep_Learning_Toolbox_Converter_for_ONNX_Model_Format
 #product.Deep_Learning_Toolbox_Converter_for_PyTorch_Model_Format
 #product.Deep_Learning_Toolbox_Converter_for_TensorFlow_models
 #product.Deep_Learning_Toolbox_Importer_for_Caffe_Models
 #product.Deep_Learning_Toolbox_Interface_for_TensorFlow_Lite
-#product.Deep_Learning_Toolbox_Model_Compression_Library
 #product.Deep_Learning_Toolbox_Model_for_AlexNet_Network
 #product.Deep_Learning_Toolbox_Model_for_DarkNet-19_Network
 #product.Deep_Learning_Toolbox_Model_for_DarkNet-53_Network
@@ -303,6 +306,7 @@
 #product.Deep_Learning_Toolbox_Model_for_VGG-16_Network
 #product.Deep_Learning_Toolbox_Model_for_VGG-19_Network
 #product.Deep_Learning_Toolbox_Model_for_Xception_Network
+#product.Deep_Learning_Toolbox_Model_Quantization_Library
 #product.Deep_Learning_Toolbox_Verification_Library
 #product.Embedded_Coder_Interface_to_QEMU_Emulator
 #product.Embedded_Coder_Support_Package_for_AMD_SoC_Devices
@@ -322,9 +326,9 @@
 #product.Geoid_Data_for_Aerospace_Toolbox
 #product.GPU_Coder_Interface_for_Deep_Learning_Libraries
 #product.GUIDE_to_App_Designer_Migration_Tool_for_MATLAB
-#product.HDL_Coder_Support_Package_for_AMD_FPGA_and_SoC_Devices
 #product.HDL_Coder_Support_Package_for_Intel_FPGA_and_SoC_Devices
 #product.HDL_Coder_Support_Package_for_Microchip_FPGA_and_SoC_Devices
+#product.HDL_Coder_Support_Package_for_Xilinx_FPGA_and_SoC_Devices
 #product.HDL_Verifier_Support_Package_for_AMD_FPGA_and_SoC_Devices
 #product.HDL_Verifier_Support_Package_for_Intel_FPGA_Boards
 #product.HDL_Verifier_Support_Package_for_Microsemi_FPGA_Boards
@@ -352,9 +356,7 @@
 #product.Instrument_Control_Toolbox_Support_Package_for_Rohde_Schwarz_VISA_Interface
 #product.Instrument_Control_Toolbox_Support_Package_for_Total_Phase_Aardvark_I2C/SPI_Interface
 #product.Integro-Differential_Modeling_Framework_for_MATLAB
-#product.Large-Scale_Cloud_Simulation_for_Simulink
 #product.Lidar_Toolbox_Interface_for_OpenPCDet_Library
-#product.Lidar_Toolbox_Model_for_PointNet++_Classification
 #product.Lidar_Toolbox_Model_for_RandLA-Net_Semantic_Segmentation
 #product.Lidar_Toolbox_Support_Package_for_Hokuyo_LiDAR_Sensors
 #product.Lidar_Toolbox_Support_Package_for_Ouster_Lidar_Sensors
@@ -370,7 +372,6 @@
 #product.MATLAB_Coder_Interface_for_Deep_Learning_Libraries
 #product.MATLAB_Coder_Interface_for_Visual_Studio_Code_Debugging
 #product.MATLAB_Coder_Support_Package_for_NVIDIA_Jetson_and_NVIDIA_DRIVE_Platforms
-#product.MATLAB_Support_for_HEIF/HEIC_Image_Format
 #product.MATLAB_Support_for_MinGW-w64_C/C++/Fortran_Compiler
 #product.MATLAB_Support_Package_for_Android_Sensors
 #product.MATLAB_Support_Package_for_Apple_iOS_Sensors
@@ -389,6 +390,7 @@
 #product.Mixed-Signal_Blockset_Models
 #product.Modelscape_for_MATLAB
 #product.Multi-Version_Co-Simulation_for_Simulink
+#product.New_Desktop_for_MATLAB_Tech_Preview
 #product.PostgreSQL_ODBC_Driver_for_Database_Toolbox
 #product.Powertrain_Blockset_Drive_Cycle_Data
 #product.Radar_Toolbox_Support_Package_for_Texas_Instruments_mmWave_Radar_Sensors
@@ -401,7 +403,6 @@
 #product.ROS_Toolbox_Support_Package_for_TurtleBot-Based_Robots
 #product.Scenario_Builder_for_Automated_Driving_Toolbox
 #product.Signal_Processing_Toolbox_Support_Package_for_Linux_IIO_Devices
-#product.Simulink_3D_Animation_Interface_for_Unreal_Engine_Projects
 #product.Simulink_Coder_Support_Package_for_ARM_Cortex-based_VEX_Microcontroller
 #product.Simulink_Coder_Support_Package_for_BBC_microbit_Board
 #product.Simulink_Coder_Support_Package_for_BeagleBone_Blue_Hardware
@@ -441,33 +442,6 @@
 #product.Wireless_Testbench_Support_Package_for_NI_USRP_Radios
 
 ########################################################################
-## OPTIONAL FEATURES
-########################################################################
-##
-## Uncomment the lines for the optional features you want to install or download.
-
-#product.Airport_Scene
-#product.Construction_Site_Scene
-#product.Curved_Road_Scene
-#product.Double_Lane_Change_Scene
-#product.Empty_Grass_Scene
-#product.Empty_Scene
-#product.Large_Parking_Lot_Scene
-#product.Offroad_Pit_Mining_Scene
-#product.Open_Surface_Scene
-#product.Parking_Lot_Scene
-#product.Straight_Road_Scene
-#product.Suburban_Scene
-#product.TensorRT_Library
-#product.US_City_Block_Scene
-#product.US_Highway_Scene
-#product.Virtual_MCity_Scene
-#product.ZalaZONE_Automotive_Proving_Ground_High-speed_Handling_Course_Scene
-#product.ZalaZONE_Automotive_Proving_Ground_Hill_Tracks_Scene
-#product.ZalaZONE_Automotive_Proving_Ground_Smart_City_Scene
-
-
-########################################################################
 ## CHECKSUM
 ########################################################################
 ##
@@ -475,4 +449,4 @@
 ## check the integrity of the input file. Changing the value
 ## of the checksum field invalidates this input file.
 
-?checksum=UjIwMjVi
+?checksum=UjIwMjRi

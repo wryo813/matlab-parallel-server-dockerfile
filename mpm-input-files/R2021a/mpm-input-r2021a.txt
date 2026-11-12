@@ -1,5 +1,5 @@
 ########################################################################
-## Configuration File for Installing or Downloading R2020b MathWorks Products
+## Configuration File for Installing or Downloading R2021a MathWorks Products
 ########################################################################
 ##
 ## Use this file to configure the installation or download of MathWorks 
@@ -57,6 +57,25 @@
 
 # destinationFolder=
 
+
+########################################################################
+## SOURCE FOLDER (INSTALL ONLY)
+########################################################################
+##
+## Specify the full path to the folder that contains the product files
+## you want to install from.
+##
+##   Example:
+##   (Windows) source=C:\Users\<USER>\Downloads\MathWorks
+##   (Linux/macOS) source=/home/<USER>/downloads/mathworks
+##
+## If using the product ISO, extract or mount the image first.
+##
+## Set the desired value for source and uncomment the following line.
+
+# source=
+
+
 ########################################################################
 ## ACCEPT VENDOR LICENSE AGREEMENTS
 ########################################################################
@@ -87,6 +106,7 @@
 #product.Computer_Vision_Toolbox
 #product.Control_System_Toolbox
 #product.Curve_Fitting_Toolbox
+#product.DDS_Blockset
 #product.DSP_System_Toolbox
 #product.Data_Acquisition_Toolbox
 #product.Database_Toolbox
@@ -138,6 +158,7 @@
 #product.Risk_Management_Toolbox
 #product.Robotics_System_Toolbox
 #product.Robust_Control_Toolbox
+#product.Satellite_Communications_Toolbox
 #product.Sensor_Fusion_and_Tracking_Toolbox
 #product.SerDes_Toolbox
 #product.Signal_Processing_Toolbox
@@ -171,7 +192,6 @@
 #product.System_Composer
 #product.System_Identification_Toolbox
 #product.Text_Analytics_Toolbox
-#product.Trading_Toolbox
 #product.UAV_Toolbox
 #product.Vehicle_Dynamics_Blockset
 #product.Vehicle_Network_Toolbox
@@ -187,8 +207,7 @@
 ##
 ## Uncomment the lines for the support packages you want to install or download.
 
-#product._GPU_Coder_Support_Package_for_NVIDIA_GPUs_
-#product.Aerospace_Blockset_CubeSat_Simulation_Library
+#product.Automated_Driving_Toolbox_Importer_for_Zenrin_Japan_Map_API_3.0_(Itsumo_NAVI_API_3.0)_Service
 #product.Automated_Driving_Toolbox_Interface_for_Unreal_Engine_4_Projects
 #product.Bioinformatics_Toolbox_Interface_for_Bowtie_Aligner
 #product.Communications_Toolbox_Library_for_the_Bluetooth_Protocol
@@ -199,10 +218,11 @@
 #product.Communications_Toolbox_Support_Package_for_USRP_Embedded_Series_Radio
 #product.Communications_Toolbox_Support_Package_for_USRP_Radio
 #product.Communications_Toolbox_Support_Package_for_Xilinx_Zynq-Based_Radio
+#product.Component_Deployment_Guideline_for_Embedded_Coder
 #product.Computer_Vision_Toolbox_Interface_for_OpenCV_in_MATLAB
 #product.Computer_Vision_Toolbox_Interface_for_OpenCV_in_Simulink
+#product.Computer_Vision_Toolbox_Model_for_YOLO_v3_Object_Detection
 #product.Computer_Vision_Toolbox_OCR_Language_Data
-#product.Computer_Vision_Toolbox_Support_Package_for_Xilinx_Zynq-Based_Hardware
 #product.Data_Acquisition_Toolbox_Support_Package_for_Analog_Devices_ADALM1000_Hardware
 #product.Data_Acquisition_Toolbox_Support_Package_for_Digilent_Analog_Discovery_Hardware
 #product.Data_Acquisition_Toolbox_Support_Package_for_Measurement_Computing_Hardware
@@ -214,8 +234,8 @@
 #product.Deep_Learning_HDL_Toolbox_Support_Package_for_Intel_FPGA_and_SoC_Devices
 #product.Deep_Learning_HDL_Toolbox_Support_Package_for_Xilinx_FPGA_and_SoC_Devices
 #product.Deep_Learning_Toolbox_Converter_for_ONNX_Model_Format
+#product.Deep_Learning_Toolbox_Converter_for_TensorFlow_models
 #product.Deep_Learning_Toolbox_Importer_for_Caffe_Models
-#product.Deep_Learning_Toolbox_Importer_for_Tensorflow-Keras_Models
 #product.Deep_Learning_Toolbox_Model_for_AlexNet_Network
 #product.Deep_Learning_Toolbox_Model_for_DarkNet-19_Network
 #product.Deep_Learning_Toolbox_Model_for_DarkNet-53_Network
@@ -253,6 +273,7 @@
 #product.HDL_Coder_Support_Package_for_Intel_FPGA_Boards
 #product.HDL_Coder_Support_Package_for_Intel_SoC_Devices
 #product.HDL_Coder_Support_Package_for_Xilinx_FPGA_Boards
+#product.HDL_Coder_Support_Package_for_Xilinx_RFSoC_Devices
 #product.HDL_Coder_Support_Package_for_Xilinx_Zynq_Platform
 #product.HDL_Verifier_Support_Package_for_Intel_FPGA_Boards
 #product.HDL_Verifier_Support_Package_for_Microsemi_FPGA_Boards
@@ -286,6 +307,7 @@
 #product.MATLAB_Basemap_Data_-_landcover
 #product.MATLAB_Client_for_MATLAB_Production_Server
 #product.MATLAB_Coder_Interface_for_Deep_Learning_Libraries
+#product.MATLAB_Coder_Support_Package_for_NVIDIA_Jetson_and_NVIDIA_DRIVE_Platforms
 #product.MATLAB_Support_for_MinGW-w64_C/C++_Compiler
 #product.MATLAB_Support_Package_for_Android_Sensors
 #product.MATLAB_Support_Package_for_Apple_iOS_Sensors
@@ -339,6 +361,7 @@
 #product.Vehicle_Network_Toolbox_Support_Package_for_National_Instruments_NI-XNET_CAN_devices
 #product.Vehicle_Network_Toolbox_Support_Package_for_PEAK-System_CAN_devices
 #product.Vehicle_Network_Toolbox_Support_Package_for_Vector_CAN_devices
+#product.Vision_HDL_Toolbox_Support_Package_for_Xilinx_Zynq-Based_Hardware
 #product.WINNER_II_Channel_Model_for_Communications_Toolbox
 
 ########################################################################
@@ -349,4 +372,4 @@
 ## check the integrity of the input file. Changing the value
 ## of the checksum field invalidates this input file.
 
-?checksum=UjIwMjBi
+?checksum=UjIwMjFh
