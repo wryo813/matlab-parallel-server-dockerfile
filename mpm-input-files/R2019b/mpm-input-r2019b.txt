@@ -57,6 +57,25 @@
 
 # destinationFolder=
 
+
+########################################################################
+## SOURCE FOLDER (INSTALL ONLY)
+########################################################################
+##
+## Specify the full path to the folder that contains the product files
+## you want to install from.
+##
+##   Example:
+##   (Windows) source=C:\Users\<USER>\Downloads\MathWorks
+##   (Linux/macOS) source=/home/<USER>/downloads/mathworks
+##
+## If using the product ISO, extract or mount the image first.
+##
+## Set the desired value for source and uncomment the following line.
+
+# source=
+
+
 ########################################################################
 ## ACCEPT VENDOR LICENSE AGREEMENTS
 ########################################################################

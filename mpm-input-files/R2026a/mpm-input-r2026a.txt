@@ -37,6 +37,8 @@
 ## To get a specific update for R2026a, set the desired update
 ## number (for example, 1, 2, 3, and so on) and uncomment the following
 ## line. An updateLevel of 0 gets the general release.
+##
+## This option is not available if you specify a source.
 
 # updateLevel=0
 
@@ -70,6 +72,25 @@
 ## uncomment the following line.
 
 # destinationFolder=
+
+########################################################################
+## SOURCE FOLDER (INSTALL ONLY)
+########################################################################
+##
+## Specify the full path to the folder that contains the product files
+## you want to install from.
+##
+##   Example:
+##   (Windows) source=C:\Users\<USER>\Downloads\MathWorks
+##   (Linux/macOS) source=/home/<USER>/downloads/mathworks
+##
+## If using the product ISO, extract or mount the image first.
+##
+## This option is not available if you specify an updateLevel.
+##
+## Set the desired value for source and uncomment the following line.
+
+# source=
 
 ########################################################################
 ## SUPPORT PACKAGE DESTINATION

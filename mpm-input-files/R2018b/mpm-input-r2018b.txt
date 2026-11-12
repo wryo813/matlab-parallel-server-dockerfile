@@ -1,5 +1,5 @@
 ########################################################################
-## Configuration File for Installing or Downloading R2017b MathWorks Products
+## Configuration File for Installing or Downloading R2018b MathWorks Products
 ########################################################################
 ##
 ## Use this file to configure the installation or download of MathWorks 
@@ -57,18 +57,37 @@
 
 
 ########################################################################
+## SOURCE FOLDER (INSTALL ONLY)
+########################################################################
+##
+## Specify the full path to the folder that contains the product files
+## you want to install from.
+##
+##   Example:
+##   (Windows) source=C:\Users\<USER>\Downloads\MathWorks
+##   (Linux/macOS) source=/home/<USER>/downloads/mathworks
+##
+## If using the product ISO, extract or mount the image first.
+##
+## Set the desired value for source and uncomment the following line.
+
+# source=
+
+
+########################################################################
 ## PRODUCTS
 ########################################################################
 ##
 ## Uncomment the lines for the products you want to install or download.
 
+#product.5G_Toolbox
 #product.Aerospace_Blockset
 #product.Aerospace_Toolbox
 #product.Antenna_Toolbox
 #product.Audio_System_Toolbox
 #product.Automated_Driving_System_Toolbox
 #product.Bioinformatics_Toolbox
-#product.Communications_System_Toolbox
+#product.Communications_Toolbox
 #product.Computer_Vision_System_Toolbox
 #product.Control_System_Toolbox
 #product.Curve_Fitting_Toolbox
@@ -76,6 +95,7 @@
 #product.Data_Acquisition_Toolbox
 #product.Database_Toolbox
 #product.Datafeed_Toolbox
+#product.Deep_Learning_Toolbox
 #product.Econometrics_Toolbox
 #product.Embedded_Coder
 #product.Filter_Design_HDL_Coder
@@ -91,7 +111,7 @@
 #product.Image_Processing_Toolbox
 #product.Instrument_Control_Toolbox
 #product.LTE_HDL_Toolbox
-#product.LTE_System_Toolbox
+#product.LTE_Toolbox
 #product.MATLAB
 #product.MATLAB_Coder
 #product.MATLAB_Compiler
@@ -101,7 +121,6 @@
 #product.Mapping_Toolbox
 #product.Model_Predictive_Control_Toolbox
 #product.Model-Based_Calibration_Toolbox
-#product.Neural_Network_Toolbox
 #product.OPC_Toolbox
 #product.Optimization_Toolbox
 #product.Parallel_Computing_Toolbox
@@ -110,20 +129,21 @@
 #product.Polyspace_Bug_Finder
 #product.Polyspace_Code_Prover
 #product.Powertrain_Blockset
+#product.Predictive_Maintenance_Toolbox
 #product.RF_Blockset
 #product.RF_Toolbox
 #product.Risk_Management_Toolbox
 #product.Robotics_System_Toolbox
 #product.Robust_Control_Toolbox
+#product.Sensor_Fusion_and_Tracking_Toolbox
 #product.Signal_Processing_Toolbox
 #product.SimBiology
 #product.SimEvents
 #product.Simscape
 #product.Simscape_Driveline
-#product.Simscape_Electronics
+#product.Simscape_Electrical
 #product.Simscape_Fluids
 #product.Simscape_Multibody
-#product.Simscape_Power_Systems
 #product.Simulink
 #product.Simulink_3D_Animation
 #product.Simulink_Check
@@ -145,9 +165,10 @@
 #product.System_Identification_Toolbox
 #product.Text_Analytics_Toolbox
 #product.Trading_Toolbox
+#product.Vehicle_Dynamics_Blockset
 #product.Vehicle_Network_Toolbox
 #product.Vision_HDL_Toolbox
-#product.WLAN_System_Toolbox
+#product.WLAN_Toolbox
 #product.Wavelet_Toolbox
 
 
@@ -159,4 +180,4 @@
 ## check the integrity of the input file. Changing the value
 ## of the checksum field invalidates this input file.
 
-?checksum=UjIwMTdi
+?checksum=UjIwMThi
