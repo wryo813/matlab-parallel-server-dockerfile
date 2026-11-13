@@ -48,7 +48,7 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
 | `alternates/building-on-matlab-docker-image/head/docker-compose.yml` | 新規 | head ノードとプロキシの定義 |
 | `alternates/building-on-matlab-docker-image/compute/docker-compose.yml` | 新規 | compute ノードの定義 |
 | `alternates/building-on-matlab-docker-image/compute/docker-compose-wNFS.yml` | 新規 | compute ノード + NFS 版 |
-| `.gitignore` | upstream ファイルを改変 | `.env` / `certs/` / `secrets/` を追加 |
+| `.gitignore` | upstream ファイルを改変 | `.env` / `certs/` / `secrets/` を追加（証明書とパスワードは現在リポジトリの外に置くが、`MJS_SECRETS_DIR` にリポジトリ内の相対パスを指定した場合の保険として残している） |
 
 ### Dockerfile の変更内容
 
@@ -147,20 +147,20 @@ docker compose build \
 
 ### 2-1. 手で用意するファイル
 
-以下の 2 つは `.gitignore` 対象でリポジトリには含まれていません。head ホスト上で作成してください。
+以下の 2 つはリポジトリには含まれていません。**リポジトリの外**の、head ホスト上の固定ディレクトリに作成してください。
+既定のディレクトリは `/etc/matlab-parallel-server` で、`.env` の `MJS_SECRETS_DIR` で変更できます。
 
 | パス | 内容 |
 | --- | --- |
-| `head/certs/proxy-certificate.json` | `matlab-mjs-proxy` に渡す証明書。MathWorks が提供する手順で生成したものをそのまま配置します（compose は `-certificate` に渡すだけです） |
-| `head/secrets/mjs_admin_pass.txt` | `MJS_ADMIN_USER`（既定 `mjsadmin`）の LDAP パスワード。1 行のプレーンテキスト。末尾の改行は除去されます |
+| `/etc/matlab-parallel-server/proxy-certificate.json` | `matlab-mjs-proxy` に渡す証明書。MathWorks が提供する手順で生成したものをそのまま配置します（compose は `-certificate` に渡すだけです） |
+| `/etc/matlab-parallel-server/mjs_admin_pass.txt` | `MJS_ADMIN_USER`（既定 `mjsadmin`）の LDAP パスワード。1 行のプレーンテキスト。末尾の改行は除去されます |
 
 ```bash
-cd alternates/building-on-matlab-docker-image/head
-mkdir -p certs secrets
-cp /path/to/proxy-certificate.json certs/
-printf '%s' 'MJSADMIN_PASSWORD' > secrets/mjs_admin_pass.txt
-chmod 600 secrets/mjs_admin_pass.txt
-sudo chown 1001 secrets/mjs_admin_pass.txt   # コンテナ内の matlab ユーザー (UID 1001) が読めるようにする
+sudo install -d -m 700 -o root -g root /etc/matlab-parallel-server
+sudo install -m 644 /path/to/proxy-certificate.json /etc/matlab-parallel-server/proxy-certificate.json
+printf '%s' 'MJSADMIN_PASSWORD' | sudo tee /etc/matlab-parallel-server/mjs_admin_pass.txt > /dev/null
+sudo chmod 600 /etc/matlab-parallel-server/mjs_admin_pass.txt
+sudo chown 1001 /etc/matlab-parallel-server/mjs_admin_pass.txt   # コンテナ内の matlab ユーザー (UID 1001) が読めるようにする
 ```
 
 compose の `secrets:`（swarm ではない場合）はホストのファイルをそのまま bind mount するため、ホスト側の所有者と
@@ -168,11 +168,32 @@ compose の `secrets:`（swarm ではない場合）はホストのファイル�
 コンテナ内の `matlab` から読めず、`startjobmanager` が空のパスワードで失敗します。
 UID はイメージごとに `docker run --rm --entrypoint id <イメージ名> matlab` で確認できます。
 
+ディレクトリ自体は root だけが入れる `700` で構いません。bind mount は Docker デーモン（root）が行い、
+コンテナ内ではマウントされたファイル自身の所有者とパーミッションだけが効くためです
+（rootless Docker や userns-remap を使っている場合は当てはまりません）。
+
+**リポジトリの外に置く理由** — ファイルが無いと、`docker compose up` は
+`invalid mount config for type "bind": bind source path does not exist` でコンテナを作成できずに失敗します。
+Komodo のスタックで Reclone を有効にしている場合など、デプロイのたびにリポジトリを削除して clone し直す運用では、
+リポジトリ内（以前の `head/certs/`、`head/secrets/`）に手で置いたファイルは残りません。
+
+> **Note**
+> 以前の版では `head/certs/proxy-certificate.json` と `head/secrets/mjs_admin_pass.txt` を参照していました。
+> 更新する場合は、この 2 ファイルを上記のディレクトリへ移してください。
+> ディレクトリ構成を変えたくない場合は `MJS_SECRETS_DIR` に別のディレクトリを指定できますが、
+> 2 ファイルは同じディレクトリに置く必要があります。
+
+Komodo の Periphery をコンテナで動かしている場合、`docker compose` はそのコンテナ内で実行されるため、
+コンテナにマウントされていないパスは compose から見えず、
+`secret file ... does not exist` という警告が出ます。マウント自体はホストの Docker デーモンが行うので、
+ホスト上にファイルがあれば起動には影響しません。
+
 ### 2-2. `.env` の作成
 
 `LDAP_HOST` だけは既定値がなく、**未設定だと compose が起動を拒否します**。
 
 ```bash
+cd alternates/building-on-matlab-docker-image/head
 cat > .env <<'EOF'
 FQDN=head.example.internal
 LDAP_HOST=ldap.example.internal
@@ -278,6 +299,7 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 | `MJS_ADMIN_USER` | `mjsadmin` | MJS 管理者ユーザー |
 | `LDAP_SYNC_INTERVAL` | `1800` | LDAP 同期間隔（秒）。`0` は毎アクセス時に同期 |
 | `PROXY_PORT` | `1080` | `matlab-mjs-proxy` の待ち受けポート |
+| `MJS_SECRETS_DIR` | `/etc/matlab-parallel-server` | 証明書とパスワードのファイルを置く、head ホスト上のディレクトリ（[2-1](#2-1-手で用意するファイル) 参照）。相対パスは `head/docker-compose.yml` のディレクトリが基準になる |
 
 ### compute（`compute/docker-compose.yml`、`compute/docker-compose-wNFS.yml` 共通）
 
@@ -308,8 +330,8 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 | --- | --- | --- |
 | AOCL BLAS/LAPACK | `libaocl.so` | `compute/docker-compose-wNFS.yml` |
 | プロキシイメージ | `ghcr.io/mathworks/parallel-server-proxy:v1.0.4` | `head/docker-compose.yml` |
-| 証明書のパス | `./certs/proxy-certificate.json` | `head/docker-compose.yml` の `secrets:` |
-| パスワードのパス | `./secrets/mjs_admin_pass.txt` | `head/docker-compose.yml` の `secrets:` |
+| 証明書のファイル名 | `proxy-certificate.json`（ディレクトリは `MJS_SECRETS_DIR`） | `head/docker-compose.yml` の `secrets:` |
+| パスワードのファイル名 | `mjs_admin_pass.txt`（ディレクトリは `MJS_SECRETS_DIR`） | `head/docker-compose.yml` の `secrets:` |
 
 ## 既知の問題・注意点
 
