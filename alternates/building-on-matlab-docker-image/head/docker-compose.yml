@@ -115,8 +115,12 @@ services:
       - -certificate
       - /run/secrets/proxy_certificate
 
+# 証明書とパスワードはリポジトリの外 (head ホスト上の固定ディレクトリ) に置く。
+# swarm を使わない compose の file secret はホストのファイルを bind mount するため、ファイルが無いとコンテナを作成できない。
+# リポジトリ内に置くと、clone し直すデプロイ (Komodo の Reclone など) のたびに消えてしまう。
+# 置き場所は MJS_SECRETS_DIR で変更できる。相対パスを指定した場合は、この compose ファイルのディレクトリが基準になる
 secrets:
   proxy_certificate:
-    file: ./certs/proxy-certificate.json
+    file: ${MJS_SECRETS_DIR:-/etc/matlab-parallel-server}/proxy-certificate.json
   mjs_admin_pass:
-    file: ./secrets/mjs_admin_pass.txt
+    file: ${MJS_SECRETS_DIR:-/etc/matlab-parallel-server}/mjs_admin_pass.txt
