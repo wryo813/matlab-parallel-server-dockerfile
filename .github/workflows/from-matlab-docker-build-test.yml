@@ -5,7 +5,8 @@ name: Build and Test the "Building on MATLAB Docker Image" Dockerfile
 # main のルールセットで集約ジョブ ci-ok を必須チェックにしている。push の paths で
 # 絞るとワークフロー自体が起動せず、ci-ok が報告されないまま PR がマージできなくなる。
 # そのためブランチへの push では毎回起動し、イメージのビルドが要るかどうかは changes
-# ジョブで判定する (判定に使うパスは、以前 push の paths に書いていたものと同じ)。
+# ジョブで判定する。判定に使うパスは、以前 push の paths に書いていたものに、ビルドと
+# テストが読む tests/requirements.txt と .github/actions/cleanup-runner/ を足したもの。
 on:
   workflow_dispatch:
   push:
@@ -68,7 +69,9 @@ jobs:
               echo "No base commit to compare with: build."
             else
               echo "Comparing $base..HEAD"
-              changed="$(git diff --name-only --no-renames "$base" HEAD)"
+              # core.quotepath=off: 非 ASCII のファイル名を引用符付きで出力させない
+              # (引用符が付くと下の ^ から始まるパターンに一致しなくなる)。
+              changed="$(git -c core.quotepath=off diff --name-only --no-renames "$base" HEAD)"
               relevant="$(printf '%s\n' "$changed" \
                 | grep -E \
                     -e '^alternates/building-on-matlab-docker-image/Dockerfile$' \
@@ -76,6 +79,8 @@ jobs:
                     -e '^alternates/building-on-matlab-docker-image/compute/docker-compose[^/]*\.yml$' \
                     -e '^tests/alternates/building-on-matlab-docker-image/' \
                     -e '^tests/utils/' \
+                    -e '^tests/requirements\.txt$' \
+                    -e '^\.github/actions/cleanup-runner/' \
                     -e '^\.github/workflows/from-matlab-docker-build-test\.yml$' \
                 | grep -vE '\.md$' || true)"
               if [ -n "$relevant" ]; then
