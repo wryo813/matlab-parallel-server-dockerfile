@@ -2,20 +2,16 @@
 
 name: Build and Test the "Building on MATLAB Docker Image" Dockerfile
 
-# Trigger this workflow either manually or when a new change is pushed to the
-# repo (except .md files)
+# main のルールセットで集約ジョブ ci-ok を必須チェックにしている。push の paths で
+# 絞るとワークフロー自体が起動せず、ci-ok が報告されないまま PR がマージできなくなる。
+# そのためブランチへの push では毎回起動し、イメージのビルドが要るかどうかは changes
+# ジョブで判定する。判定に使うパスは、以前 push の paths に書いていたものに、ビルドと
+# テストが読む tests/requirements.txt と .github/actions/cleanup-runner/ を足したもの。
 on:
   workflow_dispatch:
   push:
-    # Trigger the workflow when the Dockerfile or any file under tests/ is modified
-    paths:
-      - "alternates/building-on-matlab-docker-image/Dockerfile"
-      - "alternates/building-on-matlab-docker-image/head/docker-compose.yml"
-      - "alternates/building-on-matlab-docker-image/compute/docker-compose*.yml"
-      - "tests/alternates/building-on-matlab-docker-image/**"
-      - "tests/utils/**"
-      - ".github/workflows/from-matlab-docker-build-test.yml"
-      - "!**.md"
+    branches:
+      - "**"
   schedule:
     # Run at 00:00 on every Monday (1st Day of the Week)
     - cron: "0 0 * * 1"
@@ -27,7 +23,81 @@ env:
   MATLAB_BATCH_PATH: ${{ github.workspace }}/matlab-batch/matlab-batch
 
 jobs:
+  # イメージのビルドとテストが要るかどうかを判定する。
+  # - push 以外 (workflow_dispatch, schedule): 常にビルドする。
+  # - main 以外のブランチへの push: main との分岐点からの差分で判定する。直前の push との差分で
+  #   判定すると、ビルドに失敗した後に .md だけを push したときにビルドが飛ばされ、壊れたまま
+  #   main への PR が通ってしまうため。
+  # - main への push: 直前の main との差分で判定する。
+  # 比較元が見つからないとき (force push など) はビルドする。
+  changes:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      build: ${{ steps.detect.outputs.build }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes that need the image build
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          build=true
+          if [ "$EVENT_NAME" != "push" ]; then
+            echo "Event is $EVENT_NAME: build."
+          else
+            if [ "$REF_NAME" = "main" ]; then
+              base=""
+              if [ -n "$BEFORE_SHA" ] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+                base="$BEFORE_SHA"
+              fi
+            else
+              base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+            fi
+            if [ -z "$base" ]; then
+              echo "No base commit to compare with: build."
+            else
+              echo "Comparing $base..HEAD"
+              # core.quotepath=off: 非 ASCII のファイル名を引用符付きで出力させない
+              # (引用符が付くと下の ^ から始まるパターンに一致しなくなる)。
+              changed="$(git -c core.quotepath=off diff --name-only --no-renames "$base" HEAD)"
+              relevant="$(printf '%s\n' "$changed" \
+                | grep -E \
+                    -e '^alternates/building-on-matlab-docker-image/Dockerfile$' \
+                    -e '^alternates/building-on-matlab-docker-image/head/docker-compose\.yml$' \
+                    -e '^alternates/building-on-matlab-docker-image/compute/docker-compose[^/]*\.yml$' \
+                    -e '^tests/alternates/building-on-matlab-docker-image/' \
+                    -e '^tests/utils/' \
+                    -e '^tests/requirements\.txt$' \
+                    -e '^\.github/actions/cleanup-runner/' \
+                    -e '^\.github/workflows/from-matlab-docker-build-test\.yml$' \
+                | grep -vE '\.md$' || true)"
+              if [ -n "$relevant" ]; then
+                echo "Changed files that need the image build:"
+                printf '%s\n' "$relevant" | sed 's/^/  /'
+              else
+                echo "No changed file needs the image build: skip."
+                build=false
+              fi
+            fi
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   build-test-image:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+
     runs-on: ubuntu-latest
 
     permissions:
@@ -98,3 +168,38 @@ jobs:
         env:
           IMAGE_NAME: ${{ env.IMAGE_BASE_NAME }}:${{ matrix.matlab-release }}
         run: tests/alternates/building-on-matlab-docker-image/mjs-cluster/run-cluster-test.sh
+
+  # main のルールセットで必須チェックにしているジョブ。build-test-image を直接必須にしないのは、
+  # チェック名に matrix の値 (例: build-test-image (R2026b)) が入り、リリースを変えるたびに
+  # ルールセットも直す必要があるうえ、スキップされたときは matrix が展開されず同じ名前で
+  # 報告されないためである。
+  # ビルドが要る変更では build-test-image の成功を、要らない変更ではスキップを確認する。
+  ci-ok:
+    needs: [changes, build-test-image]
+    if: always()
+
+    runs-on: ubuntu-latest
+
+    permissions: {}
+
+    steps:
+      - name: Check the results of the required jobs
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BUILD_NEEDED: ${{ needs.changes.outputs.build }}
+          BUILD_RESULT: ${{ needs.build-test-image.result }}
+        run: |
+          echo "changes: $CHANGES_RESULT (build needed: $BUILD_NEEDED)"
+          echo "build-test-image: $BUILD_RESULT"
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "::error::changes did not succeed."
+            exit 1
+          fi
+          if [ "$BUILD_NEEDED" = "true" ] && [ "$BUILD_RESULT" != "success" ]; then
+            echo "::error::build-test-image did not succeed."
+            exit 1
+          fi
+          if [ "$BUILD_NEEDED" != "true" ] && [ "$BUILD_RESULT" != "skipped" ]; then
+            echo "::error::build-test-image was expected to be skipped but was $BUILD_RESULT."
+            exit 1
+          fi
