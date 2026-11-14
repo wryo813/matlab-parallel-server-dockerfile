@@ -28,6 +28,9 @@ COMPUTE_CONTAINER="matlab-compute-node"
 # テストごとに作る管理者パスワード。ログに出ないことの確認にも使う
 ADMIN_PASS="ci-$(head -c 18 /dev/urandom | base64 | tr -d '/+=')"
 
+# secret / 証明書のダミーを置くディレクトリ。本番と同じくリポジトリの外に作り、MJS_SECRETS_DIR で compose に渡す
+SECRETS_DIR="$(mktemp -d)"
+
 compose() {
     MJS_TEST_IMAGE="${IMAGE_NAME}" \
     LDAP_HOST="host.docker.internal" \
@@ -35,6 +38,7 @@ compose() {
     NUM_WORKERS="${NUM_WORKERS}" \
     SECURITY_LEVEL=2 \
     MJS_ADMIN_USER="${ADMIN_USER}" \
+    MJS_SECRETS_DIR="${SECRETS_DIR}" \
         docker compose -p mjs-ci \
             -f "${ALT_DIR}/head/docker-compose.yml" \
             -f "${ALT_DIR}/compute/docker-compose.yml" \
@@ -44,18 +48,6 @@ compose() {
 
 log() { printf '\n=== %s\n' "$*"; }
 fail() { printf '\nFAIL: %s\n' "$*" >&2; exit 1; }
-
-# 作成した secret / 証明書のダミーを後片付けで消すため、元から無かったものだけ記録する
-CREATED_FILES=()
-make_file() {
-    local path="$1" content="$2"
-    if [ -e "${path}" ]; then
-        fail "${path} already exists; refusing to overwrite it (move it away before running this test)"
-    fi
-    mkdir -p "$(dirname "${path}")"
-    printf '%s' "${content}" > "${path}"
-    CREATED_FILES+=("${path}")
-}
 
 on_exit() {
     local rc=$?
@@ -70,9 +62,9 @@ on_exit() {
     fi
     log "Cleanup"
     compose down -v --remove-orphans > /dev/null 2>&1 || true
-    if [ "${#CREATED_FILES[@]}" -gt 0 ]; then
-        sudo rm -f "${CREATED_FILES[@]}"
-    fi
+    # パスワードのファイルは matlab の UID 所有に変えているため sudo で消す
+    sudo rm -f "${SECRETS_DIR}/proxy-certificate.json" "${SECRETS_DIR}/mjs_admin_pass.txt"
+    rmdir "${SECRETS_DIR}" || true
     exit "${rc}"
 }
 trap on_exit EXIT
@@ -155,11 +147,11 @@ log "Start test LDAP server on the runner"
 sudo "${HERE}/setup-test-ldap.sh" "${ADMIN_USER}" "${ADMIN_PASS}"
 
 log "Prepare secrets (dummy proxy certificate; the proxy service is not started)"
-make_file "${ALT_DIR}/head/certs/proxy-certificate.json" '{}'
-make_file "${ALT_DIR}/head/secrets/mjs_admin_pass.txt" "${ADMIN_PASS}"
-chmod 600 "${ALT_DIR}/head/secrets/mjs_admin_pass.txt"
+printf '%s' '{}' > "${SECRETS_DIR}/proxy-certificate.json"
+printf '%s' "${ADMIN_PASS}" > "${SECRETS_DIR}/mjs_admin_pass.txt"
+chmod 600 "${SECRETS_DIR}/mjs_admin_pass.txt"
 # compose の secret はホストのファイルをそのまま bind mount するため、コンテナ内の matlab が読める所有者にする
-sudo chown "${MATLAB_UID}" "${ALT_DIR}/head/secrets/mjs_admin_pass.txt"
+sudo chown "${MATLAB_UID}" "${SECRETS_DIR}/mjs_admin_pass.txt"
 
 log "1. Start head node and wait for job manager '${JM_NAME}'"
 compose up -d --no-build "${HEAD_CONTAINER}"
