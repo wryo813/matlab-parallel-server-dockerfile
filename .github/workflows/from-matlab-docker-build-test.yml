@@ -30,14 +30,20 @@ jobs:
   #   main への PR が通ってしまうため。
   # - main への push: 直前の main との差分で判定する。
   # 比較元が見つからないとき (force push など) はビルドする。
+  # 差分からビルドが要ると判定した場合でも、同じ内容のコミットでビルドとテストが成功済みなら
+  # ビルドしない (下の reuse ステップ)。
   changes:
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
+      # reuse ステップが、過去の実行とそのジョブの結果を API で読む。
+      actions: read
 
     outputs:
-      build: ${{ steps.detect.outputs.build }}
+      # reuse ステップが実行されなかったとき、または失敗したときは出力が空になり、
+      # detect ステップの判定をそのまま使う。
+      build: ${{ steps.reuse.outputs.build || steps.detect.outputs.build }}
 
     steps:
       - name: Checkout repo
@@ -54,6 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           build=true
+          # 差分にビルドが要るファイルがあったときだけ true にする (reuse ステップの実行条件)。
+          diff_needs_build=false
           if [ "$EVENT_NAME" != "push" ]; then
             echo "Event is $EVENT_NAME: build."
           else
@@ -86,6 +94,7 @@ jobs:
               if [ -n "$relevant" ]; then
                 echo "Changed files that need the image build:"
                 printf '%s\n' "$relevant" | sed 's/^/  /'
+                diff_needs_build=true
               else
                 echo "No changed file needs the image build: skip."
                 build=false
@@ -93,6 +102,122 @@ jobs:
             fi
           fi
           echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "diff_needs_build=$diff_needs_build" >> "$GITHUB_OUTPUT"
+
+      # 差分からビルドが要ると判定した push でも、同じ内容のコミットでビルドとテストが成功済み
+      # なら、もう一度ビルドしない。PR をマージコミットで取り込むと develop や main の先頭は
+      # 新しい SHA になるが、内容は取り込んだブランチの先頭と同じになることが多く、同じ内容を
+      # 約 30 分かけて作り直すことになるため。
+      # ci-ok は main の必須チェックなので、次のすべてを満たす実行だけを根拠にする。
+      # - 対象のコミットは HEAD 自身か HEAD から辿れるコミットで、tree が HEAD と完全に一致する
+      #   (リポジトリの全ファイルが同じ。ワークフローファイルも同じになる)。
+      # - このワークフローの実行で、完了していて結論が success である。
+      # - その実行に build-test-image のジョブが 1 つ以上あり、すべて success である
+      #   (スキップされた実行は根拠にしない)。
+      # - 実行の作成が MAX_AGE_DAYS 日以内である (ベースイメージなど外部の変化を考慮する)。
+      # API の失敗や想定外の応答で確認できないときは、ビルドする。このステップ自体が失敗した
+      # ときも continue-on-error により出力が空になり、ビルドする。
+      # 根拠があってもビルドし直したいときは、workflow_dispatch で実行する。
+      - name: Look for a successful build of the same tree
+        id: reuse
+        if: steps.detect.outputs.diff_needs_build == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+          WORKFLOW_FILE: from-matlab-docker-build-test.yml
+          MAX_AGE_DAYS: "7"
+          # HEAD から何コミット前までを調べるかと、API で調べる候補の上限。
+          SCAN_COMMITS: "200"
+          MAX_CANDIDATES: "10"
+        run: |
+          # ここでは途中の失敗を「根拠なし」として扱うので、errexit は使わない。
+          set +e
+          set -uo pipefail
+
+          found_sha=""
+          found_run=""
+
+          tree="$(git rev-parse 'HEAD^{tree}' 2>/dev/null)"
+          since="$(date -u -d "$MAX_AGE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
+          candidates=""
+          if [ -n "$tree" ] && [ -n "$since" ]; then
+            echo "HEAD tree: $tree (accepting runs created at or after $since)"
+            candidates="$(git log -n "$SCAN_COMMITS" --format='%H %T' HEAD \
+              | awk -v t="$tree" -v n="$MAX_CANDIDATES" '$2 == t && c < n { print $1; c++ }')"
+          else
+            echo "Could not determine the tree or the time limit."
+          fi
+
+          for sha in $candidates; do
+            echo "Candidate $sha has the same tree as HEAD."
+            if ! runs_json="$(gh api -X GET "repos/$REPO/actions/workflows/$WORKFLOW_FILE/runs" \
+                -f head_sha="$sha" -f status=success -f per_page=50)"; then
+              echo "  Could not list the workflow runs."
+              continue
+            fi
+            # API の絞り込みに頼らず、head_sha や結論などをここでも確認する。
+            if ! run_ids="$(printf '%s' "$runs_json" | jq -r \
+                --arg sha "$sha" --arg since "$since" --arg self "$RUN_ID" \
+                --arg repo "$REPO" --arg path ".github/workflows/$WORKFLOW_FILE" '
+                  .workflow_runs[]
+                  | select(.head_sha == $sha
+                           and .path == $path
+                           and .head_repository.full_name == $repo
+                           and .status == "completed"
+                           and .conclusion == "success"
+                           and (.id | tostring) != $self
+                           and .created_at >= $since)
+                  | .id')"; then
+              echo "  Unexpected response for the workflow runs."
+              continue
+            fi
+            if [ -z "$run_ids" ]; then
+              echo "  No successful run within the time limit."
+              continue
+            fi
+            for run_id in $run_ids; do
+              if ! jobs_json="$(gh api -X GET "repos/$REPO/actions/runs/$run_id/jobs" \
+                  -f filter=latest -f per_page=100)"; then
+                echo "  Run $run_id: could not list the jobs."
+                continue
+              fi
+              # build-test-image (matrix の値が付く場合を含む) が 1 つ以上あり、すべて成功して
+              # いること。ジョブが 100 件を超えて取り切れていない場合は根拠にしない。
+              verdict="$(printf '%s' "$jobs_json" | jq -r '
+                  (.jobs | length) as $n
+                  | [.jobs[] | select(.name | test("^build-test-image( \\(.*\\))?$"))] as $b
+                  | if .total_count == $n
+                       and ($b | length) > 0
+                       and all($b[]; .status == "completed" and .conclusion == "success")
+                    then "built" else "not-built" end')"
+              if [ "$verdict" = "built" ]; then
+                echo "  Run $run_id: build-test-image succeeded."
+                found_sha="$sha"
+                found_run="$run_id"
+                break 2
+              fi
+              echo "  Run $run_id: build-test-image did not run or did not succeed."
+            done
+          done
+
+          if [ -n "$found_run" ]; then
+            run_url="$SERVER_URL/$REPO/actions/runs/$found_run"
+            echo "The same tree was built and tested in $run_url (commit $found_sha): skip."
+            {
+              echo "### build-test-image skipped"
+              echo ""
+              echo "Commit \`$found_sha\` has the same tree as this commit (\`$tree\`),"
+              echo "and build-test-image succeeded for it in [run $found_run]($run_url)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No successful build of the same tree was found: build."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
 
   build-test-image:
     needs: changes
