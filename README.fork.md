@@ -86,7 +86,7 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
   ┌─ head ホスト ────────────────────────────────┐
   │  matlab-head-node                            │
   │    mjs console        （PID 1、常駐）        │
-  │    startjobmanager    （起動 10 秒後に実行） │
+  │    startjobmanager    （mjs の応答後に実行） │
   │                                              │
   │  matlab-mjs-proxy                            │
   │    ghcr.io/mathworks/parallel-server-proxy   │
@@ -96,7 +96,7 @@ upstream との差分は以下の 5 ファイルのみです（このドキュ�
   ┌─ compute ホスト（複数台）─────────────────────┐
   │  matlab-compute-node                         │
   │    mjs console        （PID 1、常駐）        │
-  │    startworker -num N （起動 10 秒後に実行） │
+  │    startworker -num N （mjs の応答後に実行） │
   │    （wNFS 版のみ）NFS 共有を /mnt/nfs にマウント
   └──────────────────────────────────────────────┘
 ```
@@ -219,7 +219,8 @@ docker compose logs -f matlab-head-node
 3. `mjs_def.sh` の末尾に `HOSTNAME="$FQDN"` を追記（後に書いた代入が有効になるため、元の `HOSTNAME` 行の書式に依存しない）
 4. `mjs_def.sh` の末尾に LDAP 認証設定（`SECURITY_LEVEL` / `ADMIN_USER` / `USE_LDAP_SERVER_AUTHENTICATION` /
    `LDAP_URL` / `LDAP_SECURITY_PRINCIPAL_FORMAT` / `LDAP_SYNCHRONIZATION_INTERVAL_SECS`）を追記
-5. バックグラウンドで 10 秒待機した後、`startjobmanager -name $JM_NAME -clean -v` を実行
+5. バックグラウンドで、自ノードの `mjs` サービスが応答するまで待つ（`nodestatus` が成功するかを 2 秒おきに確認、上限 120 秒）。
+   応答したら `startjobmanager -name $JM_NAME -clean -v` を 1 回だけ実行
 6. 前回の起動で残った `/var/run/mjs/mjsd.pid` を削除し（`docker restart` 後に "already running" で終了するのを防ぐため）、`mjs console -clean` を `exec` して PID 1 にする
 
 `SECURITY_LEVEL` が 2 以上の場合、`startjobmanager` は管理者パスワードを **stdin ではなく `/dev/tty` から**読もうとします。
@@ -228,9 +229,18 @@ docker compose logs -f matlab-head-node
 擬似端末のエコーにより、流し込んだパスワードは `script` の出力にそのまま現れます。`docker logs` に平文で残らないよう、
 `script` の出力を `awk` に通してパスワード文字列を `********` に置き換えています。
 
+`startjobmanager` が失敗しても再試行はしません。原因が管理者パスワードの誤りだった場合に、LDAP への認証失敗を
+繰り返さないためです。パスワードが拒否された場合や LDAP サーバに届かない場合、`startjobmanager` は終了せずに
+パスワードの再入力を待ち続けるため、120 秒で打ち切ってエラーをログに出します。このときジョブマネージャ自体は
+`running` になりますが、管理者ユーザーが登録されていません。原因を直してからコンテナを再起動してください。
+
+コンテナには healthcheck を設定しています。起動処理が成功し、ジョブマネージャ `JM_NAME` が `running` のときだけ
+`healthy` になります（`docker ps` の STATUS 列に表示されます）。`unhealthy` になってもコンテナは再起動されません。
+
 ## 3. compute ノードの起動
 
-各 compute ホストで実行します。**head のジョブマネージャが起動してから**行ってください。
+各 compute ホストで実行します。head より先に起動しても構いません。ワーカーは head のジョブマネージャに届くまで
+接続を再試行し続け、ジョブマネージャが起動した時点で自動的に登録されます。head を再起動した場合も同じです。
 
 ```bash
 cd alternates/building-on-matlab-docker-image/compute
@@ -248,6 +258,13 @@ docker compose up -d
 > **Important**
 > `SECURITY_LEVEL` と `JM_NAME` は head ノードと必ず同じ値にしてください。
 > 不一致だとワーカーがジョブマネージャに登録できません。
+
+エントリポイントは head と同じ方法で自ノードの `mjs` サービスの応答を待ち、`startworker -num $NUM_WORKERS` を
+1 回だけ実行します。`startworker` はジョブマネージャに届かなくても成功し、起動したワーカーが接続を再試行するため、
+繰り返し実行する必要はありません（繰り返すと、そのたびに `NUM_WORKERS` 台が追加で起動します）。
+
+healthcheck は、ジョブマネージャ `JM_NAME` に接続済みのワーカーがちょうど `NUM_WORKERS` 台のときだけ `healthy` になります。
+head が起動していない間や、ワーカーが不足・超過している間は `healthy` になりません。
 
 ### NFS 共有を使う場合
 
@@ -272,6 +289,9 @@ docker compose -f docker-compose-wNFS.yml up -d
 ## 4. 動作確認
 
 ```bash
+# コンテナの状態を確認（STATUS 列が healthy なら、ジョブマネージャ／ワーカーが起動済み）
+docker ps
+
 # head ノードでクラスタの状態を確認
 docker exec matlab-head-node nodestatus
 
@@ -335,10 +355,11 @@ docker exec matlab-compute-node nodestatus -remotehost head.example.internal
 
 ## 既知の問題・注意点
 
-- **起動待ちが固定 10 秒** — head・compute とも、`mjs` サービスの準備完了を待たずに `sleep 10` してから
-  ジョブマネージャ／ワーカーを起動しています。head が未起動のまま compute を上げると `startworker` は失敗しますが、
-  `mjs console` が PID 1 として生き続けるためコンテナは `up` のまま残り、`restart: always` でも復旧しません。
-  ワーカーが見えないときはまず `docker compose logs` を確認し、compute を `down` してから起動し直してください。
+- **起動に失敗してもコンテナは再起動されない** — `mjs console` が PID 1 として生き続けるため、ジョブマネージャや
+  ワーカーの起動に失敗してもコンテナは `Up` のまま残り、`restart: always` では復旧しません。失敗は healthcheck の
+  状態（`docker ps` の `unhealthy`）と `docker compose logs` の `ERROR:` の行で確認し、原因を直してからコンテナを再起動してください。
+  healthcheck は `nodestatus` の出力を読んで判定しているため、MATLAB のリリースで出力の書式が変わると、
+  正常でも `healthy` にならなくなります（CI のクラスタテストで検出します）。
 - **`mjs_def.sh` は起動のたびに作り直される** — entrypoint は毎回 `mjs_def.sh.orig` から復元してから設定を書き込むため、
   コンテナ内で `mjs_def.sh` を手で編集しても、次の起動で失われます。恒久的に変えたい設定は Dockerfile か compose の entrypoint に書いてください。
 - **SECURITY_LEVEL 3 は使えない** — レベル 3（ジョブを投入ユーザーの権限で実行）は `mjs` を root で動かす必要があり、
@@ -383,7 +404,8 @@ Dockerfile は upstream の改善（対応リリースの追加など）を受�
 - MJS クラスタの起動確認（`tests/alternates/building-on-matlab-docker-image/mjs-cluster/run-cluster-test.sh`）。
   ランナー上にテスト用の LDAP（slapd）を立て、head と compute を本番の compose のまま起動して、
   ジョブマネージャの起動、ワーカーの登録、管理者パスワードがログに出ないこと、全プロセスが非 root であること、
-  `docker restart` 後の復帰を確認します。1 台のランナーで両方を `network_mode: host` にするとポートが衝突するため、
+  healthcheck が `healthy` になること、head の `docker restart` 後にジョブマネージャが復帰してワーカーが登録し直すこと、
+  compute を head より先に起動してもワーカーが登録されることを確認します。1 台のランナーで両方を `network_mode: host` にするとポートが衝突するため、
   このテストに限り `mjs-cluster/docker-compose.ci.yml` で bridge ネットワークに置き換えています。
   MATLAB のジョブは投げないためライセンスは不要です（クラスタプロファイルの検証に相当する確認は対象外）。
 

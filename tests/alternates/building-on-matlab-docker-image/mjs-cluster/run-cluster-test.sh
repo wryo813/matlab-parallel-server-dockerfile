@@ -5,7 +5,10 @@
 #   2. compute のワーカーが NUM_WORKERS 台、head のジョブマネージャに登録される
 #   3. 管理者パスワードが docker logs に出ない
 #   4. head / compute のコンテナ内のプロセスがすべて matlab ユーザーで動いている (root のプロセスが無い)
-#   5. docker restart 後も head のジョブマネージャが起動し、mjs_def.sh に追記した設定が重複しない
+#   5. head / compute の healthcheck が healthy になる
+#   6. docker restart 後も head のジョブマネージャが起動し、mjs_def.sh に追記した設定が重複しない。
+#      compute のワーカーは操作なしで登録し直す
+#   7. compute を head より先に起動しても、head の起動後にワーカーが登録される (重複して起動しない)
 #
 # 使い方: IMAGE_NAME=<イメージ> ./run-cluster-test.sh
 # 前提: docker / docker compose が使え、sudo で apt と slapd を動かせる Ubuntu (GitHub の ubuntu-latest ランナー)。
@@ -58,6 +61,8 @@ on_exit() {
             docker logs --tail 200 "${c}" 2>&1 | sed "s/${ADMIN_PASS}/********/g" || true
             echo "--- nodestatus in ${c}"
             docker exec "${c}" nodestatus -infolevel 2 2>&1 || true
+            echo "--- health of ${c}"
+            docker inspect -f '{{json .State.Health}}' "${c}" 2>&1 | sed "s/${ADMIN_PASS}/********/g" || true
         done
     fi
     log "Cleanup"
@@ -122,6 +127,43 @@ workers_registered() {
     [ "${info%% *}" = "running" ] && [ "${n:-0}" -ge "${NUM_WORKERS}" ]
 }
 
+# コンテナの healthcheck の状態 (starting / healthy / unhealthy)
+health_status() {
+    docker inspect -f '{{.State.Health.Status}}' "$1" 2> /dev/null
+}
+
+# コンテナ $1 が healthy か
+container_healthy() {
+    container_running "$1" || fail "$1 exited"
+    local st
+    st="$(health_status "$1")"
+    echo "$1: health = ${st:-unknown}"
+    [ "${st}" = "healthy" ]
+}
+
+# compute の mjs が管理しているワーカーの数。ジョブマネージャへの接続状態は問わない。
+# nodestatus は動作中のワーカー 1 台につき "Worker:" の節を 1 つ出す
+compute_worker_count() {
+    docker exec "${COMPUTE_CONTAINER}" nodestatus 2> /dev/null | grep -c '^Worker:' || true
+}
+
+# compute で NUM_WORKERS 台のワーカーが起動済みか (head に登録できているかは問わない)
+compute_workers_started() {
+    container_running "${COMPUTE_CONTAINER}" || fail "${COMPUTE_CONTAINER} exited"
+    local n
+    n="$(compute_worker_count)"
+    echo "workers started on compute: ${n:-0}/${NUM_WORKERS}"
+    [ "${n:-0}" -ge "${NUM_WORKERS}" ]
+}
+
+# head と compute の両方が healthy になるまで待つ
+wait_both_healthy() {
+    local c
+    for c in "${HEAD_CONTAINER}" "${COMPUTE_CONTAINER}"; do
+        wait_until "${WAIT_SECS}" container_healthy "${c}" || fail "${c} did not become healthy within ${WAIT_SECS} s"
+    done
+}
+
 # コンテナ内の全プロセスのユーザーを列挙し、root のプロセスがあれば失敗にする
 assert_no_root_processes() {
     local c="$1" users
@@ -176,7 +218,11 @@ assert_no_root_processes "${HEAD_CONTAINER}"
 assert_no_root_processes "${COMPUTE_CONTAINER}"
 echo "OK: all processes run as non-root"
 
-log "5. Restart head node"
+log "5. Healthchecks report healthy"
+wait_both_healthy
+echo "OK: head and compute are healthy"
+
+log "6. Restart head node"
 before="$(appended_security_lines)"
 docker restart "${HEAD_CONTAINER}" > /dev/null
 wait_until "${WAIT_SECS}" job_manager_running || fail "job manager '${JM_NAME}' did not start again after docker restart"
@@ -184,5 +230,26 @@ after="$(appended_security_lines)"
 echo "SECURITY_LEVEL lines in mjs_def.sh: before restart ${before}, after restart ${after}"
 [ "${before}" = "${after}" ] || fail "mjs_def.sh settings were appended again on restart"
 echo "OK: job manager restarted and mjs_def.sh was not duplicated"
+# compute には何もしない。動作中のワーカーが、再起動したジョブマネージャに自分で登録し直す
+wait_until "${WAIT_SECS}" workers_registered || fail "workers did not register again with '${JM_NAME}' after head restart"
+wait_both_healthy
+echo "OK: workers registered again without restarting compute, and both nodes are healthy"
+
+log "7. Start compute node before head node"
+compose down -v --remove-orphans > /dev/null 2>&1
+compose up -d --no-build "${COMPUTE_CONTAINER}"
+wait_until "${WAIT_SECS}" compute_workers_started || fail "workers did not start on compute within ${WAIT_SECS} s"
+# head がまだ無いので、ワーカーは起動していてもジョブマネージャに接続できず、healthy になってはいけない
+st="$(health_status "${COMPUTE_CONTAINER}")"
+echo "${COMPUTE_CONTAINER}: health = ${st:-unknown} (head is not running)"
+[ "${st}" != "healthy" ] || fail "${COMPUTE_CONTAINER} is healthy although the job manager is not running"
+compose up -d --no-build "${HEAD_CONTAINER}"
+wait_until "${WAIT_SECS}" job_manager_running || fail "job manager '${JM_NAME}' did not start within ${WAIT_SECS} s"
+wait_until "${WAIT_SECS}" workers_registered || fail "workers started before head did not register with '${JM_NAME}' within ${WAIT_SECS} s"
+n="$(compute_worker_count)"
+echo "workers on compute: ${n}"
+[ "${n}" -eq "${NUM_WORKERS}" ] || fail "compute runs ${n} workers, expected exactly ${NUM_WORKERS}"
+wait_both_healthy
+echo "OK: workers started before head registered once head was up, and both nodes are healthy"
 
 log "All MJS cluster checks passed"
