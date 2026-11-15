@@ -68,13 +68,31 @@ services:
             printf 'LDAP_SYNCHRONIZATION_INTERVAL_SECS=%s\n' "$${LDAP_SYNC_INTERVAL:-1800}" >> "$${MJS_DEF_FILE}"
         fi
 
+        # ジョブマネージャの起動処理 (管理者の登録まで) が成功したことを healthcheck に伝える目印のファイル。
+        # ジョブマネージャは管理者の登録に失敗しても running になるため、nodestatus だけでは失敗を検出できない。
+        # docker restart ではコンテナのファイルシステムが残るので、起動のたびに消す
+        JM_STARTED_FILE=/var/run/mjs/startjobmanager.ok
+        rm -f "$${JM_STARTED_FILE}"
+
         # ジョブマネージャー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
             # エラーによるサブシェルの強制終了を防ぐ
             set +e
 
-            # MJSサービスプロセスがポートのバインド等を完了するためのバッファ時間（sleepさせるのバカすぎるので直したい）
-            sleep 10
+            # 自ノードの mjs サービスが応答するまで待つ。mjs はこのサブシェルより後 (末尾の exec) で起動するため、
+            # 固定時間の sleep ではなく、nodestatus が成功するかを MJS_POLL_INTERVAL 秒おきに確認して進む。
+            # MJS_WAIT_TIMEOUT 秒たっても応答しなければ、ジョブマネージャを起動せずに終える (コンテナは止めない)
+            MJS_WAIT_TIMEOUT=120
+            MJS_POLL_INTERVAL=2
+            SECONDS=0
+            until "$${NODESTATUS_BIN}" > /dev/null 2>&1; do
+                if [ "$${SECONDS}" -ge "$${MJS_WAIT_TIMEOUT}" ]; then
+                    echo "ERROR: mjs service did not respond within $${MJS_WAIT_TIMEOUT} s. Job manager '$${JM_NAME}' was not started." >&2
+                    exit 1
+                fi
+                sleep "$${MJS_POLL_INTERVAL}"
+            done
+            echo "mjs service responded after $${SECONDS} s. Starting job manager '$${JM_NAME}'."
 
             # SECURITY_LEVEL>=2 では startjobmanager がADMIN_USERのLDAPパスワードを /dev/tty から対話入力で要求する。
             # stdin パイプは /dev/tty をバイパスするため効かない。
@@ -86,10 +104,28 @@ services:
                 MJS_ADMIN_PASS="$${MJS_ADMIN_PASS}"
             fi
             # PTY のエコーにより、流し込んだパスワードが script の出力 (= docker logs) にそのまま出る。
-            # 出力からパスワード文字列をリテラル一致で伏せ字にしてからログへ流す
+            # 出力からパスワード文字列をリテラル一致で伏せ字にしてからログへ流す。
+            # script の -e は、startjobmanager の終了コードを script 自身の終了コードとして返すための指定。
+            # startjobmanager は管理者パスワードが拒否されると終了せず、パスワードの再入力を待ち続ける。
+            # ここでは再入力できないため、JM_START_TIMEOUT 秒で打ち切る (timeout の終了コードは 124)
+            JM_START_TIMEOUT=120
             printf '%s\n' "$${MJS_ADMIN_PASS}" \
-                | script -q -c "$${START_JOB_MANAGER_BIN} -name $${JM_NAME} -clean -v" /dev/null \
+                | timeout "$${JM_START_TIMEOUT}" script -q -e -c "$${START_JOB_MANAGER_BIN} -name $${JM_NAME} -clean -v" /dev/null \
                 | MJS_ADMIN_PASS="$${MJS_ADMIN_PASS}" awk '{ p = ENVIRON["MJS_ADMIN_PASS"]; if (p != "") { while ((i = index($$0, p)) > 0) $$0 = substr($$0, 1, i - 1) "********" substr($$0, i + length(p)) } print; fflush() }'
+            rc=$${PIPESTATUS[1]}
+
+            # 失敗しても再試行しない。原因が管理者パスワードの誤りだった場合に、LDAP への認証失敗を繰り返さないためである。
+            # 失敗はログに残す。成功したときだけ目印のファイルを作るので、失敗時は healthcheck が healthy にならない
+            if [ "$${rc}" -eq 0 ]; then
+                : > "$${JM_STARTED_FILE}"
+            else
+                if [ "$${rc}" -eq 124 ]; then
+                    echo "ERROR: startjobmanager did not finish within $${JM_START_TIMEOUT} s. It may be asking for the admin password again because registering the admin user failed (see the messages above)." >&2
+                else
+                    echo "ERROR: startjobmanager failed (exit code $${rc})." >&2
+                fi
+                echo "ERROR: Starting job manager '$${JM_NAME}' is not retried. Fix the cause and restart this container." >&2
+            fi
         ) &
 
         # 前回の起動で残った PID ファイルを消す。docker restart ではコンテナのファイルシステムが残り、
@@ -99,6 +135,24 @@ services:
 
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
+    # コンテナは mjs (PID 1) が動いていれば Up になり、ジョブマネージャの起動に失敗しても見分けられない。
+    # 起動処理が成功していて (entrypoint が作る目印のファイルがあり)、ジョブマネージャ JM_NAME が running のときだけ healthy にする。
+    # unhealthy になってもコンテナは再起動されない (docker ps などに状態が表示されるだけ)。
+    # awk は nodestatus の "Job manager:" 節から、Name が JM_NAME のものの Status を読む
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          [ -e /var/run/mjs/startjobmanager.ok ] || exit 1
+          nodestatus 2> /dev/null | awk -v jm="$${JM_NAME}" '
+              /^[^ ]/ { injm = ($$0 ~ /^Job manager:/); name = "" }
+              injm && $$1 == "Name" { name = $$2 }
+              injm && name == jm && $$1 == "Status" { st = $$2 }
+              END { exit (st == "running") ? 0 : 1 }'
+      interval: 30s
+      timeout: 30s
+      start_period: 180s
+      retries: 3
 
   matlab-mjs-proxy:
     image: ghcr.io/mathworks/parallel-server-proxy:v1.0.4

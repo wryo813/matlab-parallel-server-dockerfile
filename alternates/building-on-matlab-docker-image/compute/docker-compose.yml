@@ -48,11 +48,33 @@ services:
 
         # ワーカー起動処理をバックグラウンド（サブシェル）で非同期実行
         (
-            # 1. ローカルの mjs サービスが起動するまでポーリング待機(sleepさせるのバカすぎるので直したい)
-            sleep 10
+            # エラーによるサブシェルの強制終了を防ぐ
+            set +e
 
-            # 2. ワーカープロセスの起動
+            # 1. 自ノードの mjs サービスが応答するまで待つ。mjs はこのサブシェルより後 (末尾の exec) で起動するため、
+            # 固定時間の sleep ではなく、nodestatus が成功するかを MJS_POLL_INTERVAL 秒おきに確認して進む。
+            # MJS_WAIT_TIMEOUT 秒たっても応答しなければ、ワーカーを起動せずに終える (コンテナは止めない)
+            MJS_WAIT_TIMEOUT=120
+            MJS_POLL_INTERVAL=2
+            SECONDS=0
+            until "$${NODESTATUS_BIN}" > /dev/null 2>&1; do
+                if [ "$${SECONDS}" -ge "$${MJS_WAIT_TIMEOUT}" ]; then
+                    echo "ERROR: mjs service did not respond within $${MJS_WAIT_TIMEOUT} s. Workers were not started." >&2
+                    exit 1
+                fi
+                sleep "$${MJS_POLL_INTERVAL}"
+            done
+            echo "mjs service responded after $${SECONDS} s. Starting $${NUM_WORKERS} workers for job manager '$${JM_NAME}' on $${JM_HOST}."
+
+            # 2. ワーカープロセスの起動。実行は 1 回だけにする。
+            # startworker は head のジョブマネージャに届かなくても成功し (終了コード 0)、起動したワーカーは mjs の管理下で
+            # 接続を再試行し続ける。head が後から起動した場合も、ワーカーが自分でジョブマネージャに登録する。
+            # startworker を繰り返すと、そのたびに NUM_WORKERS 台が追加で起動してしまう
             "$${START_WORKER_BIN}" -jobmanagerhost "$${JM_HOST}" -jobmanager "$${JM_NAME}" -num "$${NUM_WORKERS}" -clean -v
+            rc=$$?
+            if [ "$${rc}" -ne 0 ]; then
+                echo "ERROR: startworker failed (exit code $${rc}). Workers were not started." >&2
+            fi
         ) &
 
         # 前回の起動で残った PID ファイルを消す。docker restart ではコンテナのファイルシステムが残り、
@@ -62,3 +84,20 @@ services:
 
         # メインプロセスとして mjs サービスをフォアグラウンドで起動し、PID 1 に置換
         exec "$${MJS_BIN}" console -clean
+    # コンテナは mjs (PID 1) が動いていれば Up になり、ワーカーがジョブマネージャに登録できていなくても見分けられない。
+    # ジョブマネージャ JM_NAME に接続済みのワーカーがちょうど NUM_WORKERS 台のときだけ healthy にする (不足も超過も unhealthy)。
+    # head が起動していない間は unhealthy になる。unhealthy になってもコンテナは再起動されない (docker ps などに状態が表示されるだけ)。
+    # awk は nodestatus の "Worker:" 節のうち、Job manager が JM_NAME で Connection with job manager が Connected のものを数える
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          nodestatus 2> /dev/null | awk -v jm="$${JM_NAME}" -v want="$${NUM_WORKERS}" '
+              /^[^ ]/ { inw = ($$0 ~ /^Worker:/); wjm = ""; if ($$0 ~ /^Summary:/) seen = 1 }
+              inw && $$1 == "Job" && $$2 == "manager" { wjm = $$3 }
+              inw && wjm == jm && $$1 == "Connection" && $$NF == "Connected" { n++ }
+              END { exit (seen && n + 0 == want + 0) ? 0 : 1 }'
+      interval: 30s
+      timeout: 30s
+      start_period: 180s
+      retries: 3
